@@ -1,0 +1,16 @@
+{
+  "name": "liminal-keys",
+  "description": "Official Liminal Keys plugins for Claude (PDF signing via MCP).",
+  "owner": {
+    "name": "Liminal Keys",
+    "url": "https://www.liminalkeys.com"
+  },
+  "plugins": [
+    {
+      "name": "liminal-keys",
+      "source": "./",
+      "description": "Sign digests with Liminal Keys–custodied company certificates over the production MCP connector.",
+      "version": "0.1.4"
+    }
+  ]
+}

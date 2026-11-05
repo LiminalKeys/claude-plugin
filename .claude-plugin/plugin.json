@@ -1,0 +1,14 @@
+{
+  "name": "liminal-keys",
+  "displayName": "Liminal Keys",
+  "version": "0.1.4",
+  "description": "Sign PDF digests with company certificates in Liminal Keys custody via MCP. Private keys never enter the agent sandbox.",
+  "author": {
+    "name": "Liminal Keys",
+    "url": "https://www.liminalkeys.com"
+  },
+  "homepage": "https://www.liminalkeys.com",
+  "repository": "https://github.com/LiminalKeys/claude-plugin",
+  "license": "Apache-2.0",
+  "keywords": ["liminal-keys", "pades", "pdf", "signing", "mcp", "certificates"]
+}
