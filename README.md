@@ -1,25 +1,23 @@
 # Liminal Keys — Claude plugin
 
-> **Draft — private repo.** Install commands work only after this marketplace is published. Do not treat this README as public until Antonio OK.
+Liminal Keys is in **public beta**. This marketplace plugin lets Claude **sign content by SHA-256 digest** with a **company certificate in Liminal Keys custody** over MCP (hash only). The bundled **liminalkeys-sign** helper can produce PAdES PDFs; detached digest signing works for any file format. Private keys never enter the Claude sandbox.
 
-Liminal Keys is in **public beta**. This marketplace plugin lets Claude **sign a PDF with a company certificate** over MCP (hash only) — the private key never enters the Claude sandbox.
-
-**Version:** 0.1.4 (bundles the `liminalkeys-sign` skill with offline CPython 3.12/3.13 wheels)  
+**Version:** 0.1.9 (bundles the `liminalkeys-sign` skill with offline CPython 3.12/3.13 wheels)  
 **License:** Apache-2.0  
 **Publisher:** Liminal Keys · https://www.liminalkeys.com
 
-> **Positioning (pending Antonio OK):** Standing marketing rule is that Apple code signing is the only use presented as live unless he approves otherwise. This skill is for PDF signing under company certificates; keep or drop that framing after his decision.
+**Skill zip (standalone upload):** https://www.liminalkeys.com/downloads/liminalkeys-sign-skill-0.1.9.zip — see https://www.liminalkeys.com/docs/agents/
 
 ## Before you start
 
 1. A [Liminal Console](https://console.liminalkeys.com) account and tenant.
 2. Create an **agent API key** in Console (**AI agents** → create key). Keys start with `lkag_`. You need this **before** enabling the plugin so the MCP connector can authenticate.
 
-You’re done when: the plugin is enabled, the agent API key is set for your Claude surface, and the agent can complete a first `sign_hash` on a sample PDF.
+You’re done when: the plugin is enabled, the agent API key is set for your Claude surface, and the agent can complete a first `sign_hash` on a sample document.
 
 ## Install
 
-Outcome: Claude can prepare → sign → embed → validate a PDF under your company certificate; private keys stay in Liminal Keys custody.
+Outcome: Claude can resolve a certificate → prepare (optional PAdES) → sign_hash → embed (PDF path) → validate; private keys stay in Liminal Keys custody.
 
 ### Claude Code
 
@@ -47,11 +45,13 @@ Replace the placeholder with your Console-issued key. Never commit real keys int
 
 The bundled **liminalkeys-sign** skill walks the agent through:
 
-1. `get_certificate_chain` — resolve the leaf/chain for prepare  
-2. Local `liminalkeys-sign prepare` — hash CMS signed attributes (32-byte digest)  
-3. `sign_hash` — Liminal Keys signs the digest under policy (`document_label` required)  
-4. Optional MCP `timestamp` — RFC 3161 token for PAdES B-T  
-5. `liminalkeys-sign embed` + mandatory `validate` — verify, embed, and show the validation report  
+1. `list_certificates` → pick `certificate_id`  
+2. `get_certificate_chain` — leaf PEM for prepare  
+3. Local `liminalkeys-sign prepare` — hash CMS signed attributes (32-byte digest); **invisible by default** (`--visible-signature` optional)  
+4. Approval preview / page-1 PNG when human approval may apply (`previews` on first `sign_hash`)  
+5. `sign_hash` — Liminal Keys signs the digest (`document_label` required; default **120 s** poll; reuse **`client_nonce`** + **`approval_id`** on collect)  
+6. Optional MCP `timestamp` — RFC 3161 token for PAdES B-T  
+7. `liminalkeys-sign embed` + mandatory `validate` — verify, embed (PDF), and show the validation report  
 
 The CLI enforces the pinned MCP host and response-signing keys shipped in the skill.
 
@@ -59,14 +59,12 @@ The CLI enforces the pinned MCP host and response-signing keys shipped in the sk
 
 | Data | Destination |
 |------|-------------|
-| PDF bytes, local digests, CMS state | Stay in the Claude sandbox / your machine |
-| Certificate id, 32-byte digest, `document_label`, client nonce | Sent to `https://mcp.liminalkeys.com/mcp` (Liminal Keys MCP) |
+| File bytes, local digests, CMS state | Stay in the Claude sandbox / your machine |
+| Certificate id, 32-byte digest, `document_label`, client nonce, optional previews | Sent to `https://mcp.liminalkeys.com/mcp` (Liminal Keys MCP) |
 | Signed envelopes / signature / timestamp token | Returned from that MCP host to the sandbox |
 | Private keys / Key Vault material | Never leave Liminal Keys custody; not present in this plugin |
 
 MCP responses are ES256-signed; the skill verifies them against the bundled JWKS / trust pins for `mcp.liminalkeys.com`.
-
-> **Ops note (private draft):** `mcp.liminalkeys.com` is the intended customer URL (custom domain pending DNS). Live App Service hostname is not advertised here.
 
 ## Offline wheels (agent, not you)
 
