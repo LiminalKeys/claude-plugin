@@ -112,8 +112,32 @@ class LiminalKeysStamp(AppearanceContent):
         self.style = style
         self.text_params = text_params
 
+    def _embed_watermark_png(
+        self,
+        wm_data: bytes,
+        wm_x: float,
+        wm_y: float,
+        wm_size: float,
+        *,
+        PdfImage: type,
+    ) -> bytes | None:
+        try:
+            from PIL import Image
+        except ImportError:
+            return None
+        wm_img = Image.open(BytesIO(wm_data))
+        pdf_img = PdfImage(
+            wm_img,
+            writer=self.writer,
+            box=layout.BoxConstraints(width=wm_size, height=wm_size),
+        )
+        wm_draw = pdf_img.render()
+        self.import_resources(pdf_img.resources)
+        if wm_draw.startswith(b"q ") and wm_draw.endswith(b" Q"):
+            wm_draw = wm_draw[2:-2].strip()
+        return b"q 1 0 0 1 %g %g cm %s Q" % (wm_x, wm_y, wm_draw)
+
     def render(self) -> bytes:
-        from PIL import Image
         from pyhanko.pdf_utils.images import PdfImage
 
         w = float(self.box.width)
@@ -203,23 +227,17 @@ class LiminalKeysStamp(AppearanceContent):
 
         custom = str(self.style.logo_path) if self.style.logo_path else None
         wm_data = watermark_rgb_png_bytes(custom)
-        wm_img = Image.open(BytesIO(wm_data))
         wm_margin = 2.0 * scale
         avail_h = max(1.0, fields_height - 2 * wm_margin)
         avail_w = max(1.0, w - 2 * pad)
         wm_size = min(avail_h, avail_w)
         wm_x = (w - wm_size) / 2.0
         wm_y = body_floor + wm_margin + (avail_h - wm_size) / 2.0
-        pdf_img = PdfImage(
-            wm_img,
-            writer=self.writer,
-            box=layout.BoxConstraints(width=wm_size, height=wm_size),
+        wm_embedded = self._embed_watermark_png(
+            wm_data, wm_x, wm_y, wm_size, PdfImage=PdfImage
         )
-        wm_draw = pdf_img.render()
-        self.import_resources(pdf_img.resources)
-        if wm_draw.startswith(b"q ") and wm_draw.endswith(b" Q"):
-            wm_draw = wm_draw[2:-2].strip()
-        ops.append(b"q 1 0 0 1 %g %g cm %s Q" % (wm_x, wm_y, wm_draw))
+        if wm_embedded is not None:
+            ops.append(wm_embedded)
 
         br, bg, bb = COLOR_BORDER
         ops.append(b"%g %g %g RG %g w 0 0 %g %g re S" % (br, bg, bb, border_w, w, h))

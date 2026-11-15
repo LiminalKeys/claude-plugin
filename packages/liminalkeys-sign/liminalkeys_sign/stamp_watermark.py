@@ -16,13 +16,17 @@ BRAND_LOGO_SOURCE = "branding/ciam/square-logo.png"
 MARK_CROP_BOX = (28, 28, 212, 212)  # left, top, right, bottom
 WATERMARK_VISIBLE_FRAC = 0.16  # ~16% on white — LK legible, still a watermark
 
+_DATA_DIR = Path(__file__).resolve().parent / "data"
+BAKED_WATERMARK_RGB = _DATA_DIR / "lk-watermark-baked-rgb.png"
+CROPPED_MARK = _DATA_DIR / "lk-square-mark-cropped.png"
+
 
 def _repo_root() -> Path:
     return Path(__file__).resolve().parents[4]
 
 
 def _bundled_cropped_logo() -> Path:
-    return Path(__file__).resolve().parent / "data" / "lk-square-mark-cropped.png"
+    return CROPPED_MARK
 
 
 def resolve_logo_source() -> Path:
@@ -52,10 +56,16 @@ def soften_on_white(img: Image.Image, visible: float = WATERMARK_VISIBLE_FRAC) -
     return blended.convert("RGB")
 
 
-@lru_cache(maxsize=4)
-def watermark_rgb_png_bytes(custom_path: str | None = None) -> bytes:
-    if Image is None:  # pragma: no cover
-        raise ImportError("Pillow required for stamp watermark")
+def _baked_watermark_bytes() -> bytes:
+    if BAKED_WATERMARK_RGB.is_file():
+        return BAKED_WATERMARK_RGB.read_bytes()
+    if CROPPED_MARK.is_file():
+        return CROPPED_MARK.read_bytes()
+    raise FileNotFoundError("Bundled LK watermark PNG missing from package data")
+
+
+def _watermark_via_pillow(custom_path: str | None) -> bytes:
+    assert Image is not None
     if custom_path:
         img = Image.open(custom_path).convert("RGBA")
     else:
@@ -67,3 +77,22 @@ def watermark_rgb_png_bytes(custom_path: str | None = None) -> bytes:
     buf = BytesIO()
     out.save(buf, format="PNG")
     return buf.getvalue()
+
+
+@lru_cache(maxsize=4)
+def watermark_rgb_png_bytes(custom_path: str | None = None) -> bytes:
+    """RGB PNG bytes for the stamp watermark (Pillow optional for default LK mark)."""
+    if custom_path:
+        path = Path(custom_path)
+        if not path.is_file():
+            raise FileNotFoundError(custom_path)
+        suffix = path.suffix.lower()
+        if Image is not None and suffix in {".png", ".jpg", ".jpeg", ".webp"}:
+            return _watermark_via_pillow(custom_path)
+        return path.read_bytes()
+    if Image is not None:
+        try:
+            return _watermark_via_pillow(None)
+        except FileNotFoundError:
+            pass
+    return _baked_watermark_bytes()

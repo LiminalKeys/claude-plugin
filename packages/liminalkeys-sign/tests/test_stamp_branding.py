@@ -37,6 +37,16 @@ def test_watermark_from_square_logo():
     assert MARK_CROP_BOX == (28, 28, 212, 212)
 
 
+def test_watermark_default_without_pillow(monkeypatch):
+    import liminalkeys_sign.stamp_watermark as sw
+
+    monkeypatch.setattr(sw, "Image", None)
+    sw.watermark_rgb_png_bytes.cache_clear()
+    data = sw.watermark_rgb_png_bytes()
+    assert data[:8] == b"\x89PNG\r\n\x1a\n"
+    assert len(data) > 200
+
+
 def test_branded_appearance_stream_renders():
     w = PdfFileWriter()
     style = build_text_stamp_style(VisibleStampOptions(reason="QA"))

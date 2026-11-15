@@ -8,13 +8,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 SRC_LOGO = ROOT / "branding" / "ciam" / "square-logo.png"
-OUT = (
-    Path(__file__).resolve().parents[1]
-    / "src"
-    / "liminalkeys_sign"
-    / "data"
-    / "lk-square-mark-cropped.png"
-)
+PKG_DATA = Path(__file__).resolve().parents[1] / "liminalkeys_sign" / "data"
+OUT = PKG_DATA / "lk-square-mark-cropped.png"
+BAKED = PKG_DATA / "lk-watermark-baked-rgb.png"
 
 
 def main() -> int:
@@ -27,6 +23,12 @@ def main() -> int:
     OUT.parent.mkdir(parents=True, exist_ok=True)
     img.save(OUT, optimize=True)
     print(f"wrote {OUT} ({img.size[0]}x{img.size[1]})")
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from liminalkeys_sign.stamp_watermark import soften_on_white
+
+    baked = soften_on_white(img)
+    baked.save(BAKED, optimize=True)
+    print(f"wrote {BAKED}")
     return 0
 
 

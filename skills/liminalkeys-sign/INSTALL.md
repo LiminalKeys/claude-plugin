@@ -18,7 +18,7 @@ Claude loads **`SKILL.md`** as the skill instructions. Keep **`wheels/`** next t
 
 The zip includes **`liminalkeys-mcp-keys.json`** (public JWKS) and **`liminalkeys_mcp_trust.prod.json`** (host allow list + pinned keys). You do not attach these every chat: after `pip install`, the CLI defaults to the same bundled trust. Pass `--mcp-trust-config` only to override with a custom JSON path.
 
-Offline wheels cover CPython **3.12–3.13** (manylinux x86_64) including compiled dependencies required by pyHanko (for example `aiohttp`, `lxml`, `cryptography`). **`--stamp-logo` ships a Pillow wheel for CPython 3.12** in the zip (size cap); on **3.13** sandboxes, install `pillow` from PyPI when the environment allows it, or use a 3.12 runtime for logo stamps.
+Offline wheels cover CPython **3.12–3.13** (manylinux x86_64) including compiled dependencies required by pyHanko (for example `aiohttp`, `lxml`, `cryptography`, **Pillow** for both 3.12 and 3.13). The **default branded stamp** uses a **bundled pre-baked watermark PNG** when Pillow is unavailable (structured fields and border still render; center watermark embeds when Pillow installs). **`--stamp-logo`** needs Pillow (offline wheels on Linux x86_64; PyPI on macOS or other ABIs when the sandbox allows).
 
 ## Install the CLI inside the sandbox
 

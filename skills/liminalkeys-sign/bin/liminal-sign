@@ -13,12 +13,11 @@ MARKER_VENV="${VENV}/.installed-version"
 MARKER_SITE="${SITE}/.installed-version"
 
 _run_cli() {
-  if command -v liminal-sign >/dev/null 2>&1; then
-    exec liminal-sign "$@"
+  if [[ -n "${LIMINAL_SIGN_IN_RUN_CLI:-}" ]]; then
+    echo "liminal-sign: recursion guard (use python3 -m liminalkeys_sign)" >&2
+    exit 125
   fi
-  if command -v liminalkeys-sign >/dev/null 2>&1; then
-    exec liminalkeys-sign "$@"
-  fi
+  export LIMINAL_SIGN_IN_RUN_CLI=1
   exec python3 -m liminalkeys_sign "$@"
 }
 
