@@ -1,7 +1,7 @@
 {
   "name": "liminal-keys",
   "displayName": "Liminal Keys",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "Sign any content by SHA-256 digest with company certificates in Liminal Keys custody via MCP. Optional PAdES PDF helper bundled. Private keys never enter the agent sandbox.",
   "author": {
     "name": "Liminal Keys",

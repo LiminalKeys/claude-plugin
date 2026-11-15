@@ -1,0 +1,16 @@
+{
+  "allowed_hosts": ["mcp.liminalkeys.com"],
+  "max_skew_seconds": 300,
+  "keys": {
+    "mcp-response-v1": {
+      "kty": "EC",
+      "crv": "P-256",
+      "x": "hBFhVn7Nalk1cjdKuJ9rtSCwWnRGjISJD3Dd1BDRju4",
+      "y": "AxmxcgyVJ0PTUIVVv-sJQi-slfVjw5iqBIh0QJ-dPGs",
+      "kid": "mcp-response-v1",
+      "use": "sig",
+      "alg": "ES256"
+    }
+  },
+  "_comment": "Pinned production MCP response signing key (public JWK). Sync from /.well-known/liminalkeys-mcp-keys.json via scripts/sync_bundled_mcp_keys.py before skill releases."
+}

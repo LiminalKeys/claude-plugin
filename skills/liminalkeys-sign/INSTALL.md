@@ -2,12 +2,12 @@
 
 **Size limit:** Claude rejects skill uploads at **30 MiB**. Releases target **CPython 3.12 and 3.13** (manylinux x86_64) offline wheels to stay under that cap.
 
-## Public download (0.1.9)
+## Public download (0.1.10)
 
 Download the skill zip from Liminal Keys (same layout as this plugin folder):
 
-- **Zip:** https://www.liminalkeys.com/downloads/liminalkeys-sign-skill-0.1.9.zip
-- **SHA-256:** https://www.liminalkeys.com/downloads/liminalkeys-sign-skill-0.1.9.zip.sha256
+- **Zip:** https://www.liminalkeys.com/downloads/liminalkeys-sign-skill-0.1.10.zip
+- **SHA-256:** https://www.liminalkeys.com/downloads/liminalkeys-sign-skill-0.1.10.zip.sha256
 
 Setup context: https://www.liminalkeys.com/docs/agents/
 
@@ -18,14 +18,23 @@ Claude loads **`SKILL.md`** as the skill instructions. Keep **`wheels/`** next t
 
 The zip includes **`liminalkeys-mcp-keys.json`** (public JWKS) and **`liminalkeys_mcp_trust.prod.json`** (host allow list + pinned keys). You do not attach these every chat: after `pip install`, the CLI defaults to the same bundled trust. Pass `--mcp-trust-config` only to override with a custom JSON path.
 
-Offline wheels cover CPython **3.12–3.13** (manylinux x86_64) including compiled dependencies required by pyHanko (for example `aiohttp`, `lxml`, `cryptography`). **`--stamp-logo` ships a Pillow wheel for CPython 3.12** in the zip (size cap); on **3.13** sandboxes, install `pillow` from PyPI when the environment allows it, or use a 3.12 runtime for logo stamps.
+Offline wheels cover CPython **3.12–3.13** (manylinux x86_64) including compiled dependencies required by pyHanko (for example `aiohttp`, `lxml`, `cryptography`, **Pillow** for both 3.12 and 3.13). The **default branded stamp** embeds a **pre-baked DeviceRGB image XObject** (`lk-watermark-device-rgb.bin`) without Pillow at runtime (macOS and Linux sandboxes match). **`--stamp-logo`** still requires Pillow (offline wheels on Linux x86_64 cp312/cp313; PyPI when the sandbox allows).
 
 ## Install the CLI inside the sandbox
 
-From the skill directory (`SKILL_DIR`):
+Preferred — cached venv (no `pip install` every signing run):
 
 ```bash
-pip install --no-index --find-links "$SKILL_DIR/wheels" liminalkeys-sign
+export SKILL_DIR="<skill folder>"
+chmod +x "$SKILL_DIR/bin/liminal-sign"
+export PATH="$SKILL_DIR/bin:$PATH"
+liminal-sign --version
+```
+
+Manual fallback from `SKILL_DIR`:
+
+```bash
+pip install --no-index --find-links "$SKILL_DIR/wheels" "liminalkeys-sign==0.1.10"
 ```
 
 If your environment allows PyPI, you may instead run `pip install liminalkeys-sign` once the package is published; the skill zip path avoids waiting on PyPI.

@@ -2,11 +2,11 @@
 
 Liminal Keys is in **public beta**. This marketplace plugin lets Claude **sign content by SHA-256 digest** with a **company certificate in Liminal Keys custody** over MCP (hash only). The bundled **liminalkeys-sign** helper can produce PAdES PDFs; detached digest signing works for any file format. Private keys never enter the Claude sandbox.
 
-**Version:** 0.1.9 (bundles the `liminalkeys-sign` skill with offline CPython 3.12/3.13 wheels)  
+**Version:** 0.1.10 (bundles the `liminalkeys-sign` skill with offline CPython 3.12/3.13 wheels)  
 **License:** Apache-2.0  
 **Publisher:** Liminal Keys · https://www.liminalkeys.com
 
-**Skill zip (standalone upload):** https://www.liminalkeys.com/downloads/liminalkeys-sign-skill-0.1.9.zip — see https://www.liminalkeys.com/docs/agents/
+**Skill zip (standalone upload):** https://www.liminalkeys.com/downloads/liminalkeys-sign-skill-0.1.10.zip — see https://www.liminalkeys.com/docs/agents/
 
 ## Before you start
 
@@ -45,13 +45,12 @@ Replace the placeholder with your Console-issued key. Never commit real keys int
 
 The bundled **liminalkeys-sign** skill walks the agent through:
 
-1. `list_certificates` → pick `certificate_id`  
-2. `get_certificate_chain` — leaf PEM for prepare  
-3. Local `liminalkeys-sign prepare` — hash CMS signed attributes (32-byte digest); **invisible by default** (`--visible-signature` optional)  
-4. Approval preview / page-1 PNG when human approval may apply (`previews` on first `sign_hash`)  
-5. `sign_hash` — Liminal Keys signs the digest (`document_label` required; default **120 s** poll; reuse **`client_nonce`** + **`approval_id`** on collect)  
-6. Optional MCP `timestamp` — RFC 3161 token for PAdES B-T  
-7. `liminalkeys-sign embed` + mandatory `validate` — verify, embed (PDF), and show the validation report  
+1. `list_certificates` **once** → auto-pick `certificate_id` when unambiguous  
+2. `get_certificate_chain` **once** → save `chain.pem` (do not re-fetch)  
+3. `liminal-sign prepare --pdf … --cert-chain chain.pem --out state.json` — hash, compressed preview, and `sign_hash` fields in one step (cached venv via `bin/liminal-sign`)  
+4. `sign_hash` **once** (default **120 s** poll); retries only collect with the same **`client_nonce`** + **`approval_id`**  
+5. Optional MCP `timestamp` — RFC 3161 token for PAdES B-T  
+6. `liminal-sign finish` — embed + mandatory validate in one command  
 
 The CLI enforces the pinned MCP host and response-signing keys shipped in the skill.
 
@@ -68,13 +67,11 @@ MCP responses are ES256-signed; the skill verifies them against the bundled JWKS
 
 ## Offline wheels (agent, not you)
 
-Humans normally skip this. The **agent** installs the helper inside the Claude sandbox from the skill directory when needed:
+Humans normally skip this. The **agent** should put `$SKILL_DIR/bin` on `PATH` and run **`liminal-sign`**, which installs the bundled wheel into a **cached venv** once per version (`~/.cache/liminalkeys-sign` by default). Manual fallback:
 
 ```bash
-pip install --no-index --find-links "$SKILL_DIR/wheels" liminalkeys-sign
+pip install --no-index --find-links "$SKILL_DIR/wheels" "liminalkeys-sign==0.1.10"
 ```
-
-(`$SKILL_DIR` is the skill folder path inside the sandbox.)
 
 ## Support
 
