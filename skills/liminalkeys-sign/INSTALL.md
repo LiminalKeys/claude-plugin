@@ -2,12 +2,12 @@
 
 **Size limit:** Claude rejects skill uploads at **30 MiB**. Releases target **CPython 3.12 and 3.13** (manylinux x86_64) offline wheels to stay under that cap.
 
-## Public download (0.1.9)
+## Public download (0.1.10)
 
 Download the skill zip from Liminal Keys (same layout as this plugin folder):
 
-- **Zip:** https://www.liminalkeys.com/downloads/liminalkeys-sign-skill-0.1.9.zip
-- **SHA-256:** https://www.liminalkeys.com/downloads/liminalkeys-sign-skill-0.1.9.zip.sha256
+- **Zip:** https://www.liminalkeys.com/downloads/liminalkeys-sign-skill-0.1.10.zip
+- **SHA-256:** https://www.liminalkeys.com/downloads/liminalkeys-sign-skill-0.1.10.zip.sha256
 
 Setup context: https://www.liminalkeys.com/docs/agents/
 
@@ -22,10 +22,19 @@ Offline wheels cover CPython **3.12–3.13** (manylinux x86_64) including compil
 
 ## Install the CLI inside the sandbox
 
-From the skill directory (`SKILL_DIR`):
+Preferred — cached venv (no `pip install` every signing run):
 
 ```bash
-pip install --no-index --find-links "$SKILL_DIR/wheels" liminalkeys-sign
+export SKILL_DIR="<skill folder>"
+chmod +x "$SKILL_DIR/bin/liminal-sign"
+export PATH="$SKILL_DIR/bin:$PATH"
+liminal-sign --version
+```
+
+Manual fallback from `SKILL_DIR`:
+
+```bash
+pip install --no-index --find-links "$SKILL_DIR/wheels" "liminalkeys-sign==0.1.10"
 ```
 
 If your environment allows PyPI, you may instead run `pip install liminalkeys-sign` once the package is published; the skill zip path avoids waiting on PyPI.
