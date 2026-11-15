@@ -29,6 +29,14 @@ def main() -> int:
     baked = soften_on_white(img)
     baked.save(BAKED, optimize=True)
     print(f"wrote {BAKED}")
+    import struct
+
+    rgb = baked.convert("RGB")
+    packed = PKG_DATA / "lk-watermark-device-rgb.bin"
+    packed.write_bytes(
+        struct.pack(">II", rgb.size[0], rgb.size[1]) + rgb.tobytes()
+    )
+    print(f"wrote {packed}")
     return 0
 
 

@@ -30,7 +30,7 @@ where = ["."]
 include = ["liminalkeys_sign*"]
 
 [tool.setuptools.package-data]
-liminalkeys_sign = ["data/*.json", "data/*.png"]
+liminalkeys_sign = ["data/*.json", "data/*.png", "data/*.bin"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

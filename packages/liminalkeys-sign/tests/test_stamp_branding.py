@@ -37,14 +37,73 @@ def test_watermark_from_square_logo():
     assert MARK_CROP_BOX == (28, 28, 212, 212)
 
 
-def test_watermark_default_without_pillow(monkeypatch):
-    import liminalkeys_sign.stamp_watermark as sw
+def test_default_watermark_xobject_without_pillow(monkeypatch):
+    """Default stamp must embed LkWm0 via pre-baked DeviceRGB (no Pillow)."""
+    import sys
 
-    monkeypatch.setattr(sw, "Image", None)
-    sw.watermark_rgb_png_bytes.cache_clear()
-    data = sw.watermark_rgb_png_bytes()
-    assert data[:8] == b"\x89PNG\r\n\x1a\n"
-    assert len(data) > 200
+    for name in list(sys.modules):
+        if name == "PIL" or name.startswith("PIL."):
+            monkeypatch.delitem(sys.modules, name, raising=False)
+
+    # Block Pillow imports used only for custom logos.
+    import builtins
+
+    _real_import = builtins.__import__
+
+    def _block_pil(name, *args, **kwargs):
+        if name == "PIL" or (isinstance(name, str) and name.startswith("PIL.")):
+            raise ImportError("PIL blocked for test")
+        return _real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", _block_pil)
+
+    from liminalkeys_sign.watermark_xobject import appearance_stream_has_baked_watermark
+
+    w = PdfFileWriter()
+    style = build_text_stamp_style(VisibleStampOptions(reason="QA"))
+    stream = style.create_stamp(
+        w,
+        layout.BoxConstraints(width=248, height=96),
+        {
+            "signer": "Jane Doe",
+            "date_display": "2026-11-13 19:10 UTC",
+            "cert_issuer": "Liminal Keys Test CA",
+            "cert_serial": "A1B2",
+        },
+    ).render()
+    assert appearance_stream_has_baked_watermark(stream)
+
+
+def test_prepare_pdf_contains_watermark_image_without_pillow(
+    signing_material, input_pdf, work_dir, monkeypatch
+):
+    import builtins
+
+    _real_import = builtins.__import__
+
+    def _block_pil(name, *args, **kwargs):
+        if name == "PIL" or (isinstance(name, str) and name.startswith("PIL.")):
+            raise ImportError("PIL blocked for test")
+        return _real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", _block_pil)
+
+    import pickle
+
+    from liminalkeys_sign.prepare import run_prepare
+
+    prep = run_prepare(
+        input_pdf,
+        signing_material["leaf_path"],
+        work_dir,
+        visible_signature=True,
+        stamp_options=VisibleStampOptions(),
+    )
+    state = pickle.loads(prep.state_path.read_bytes())
+    pdf_bytes = state["pdf"]
+    assert b"/LkWm0" in pdf_bytes
+    assert b"/Image" in pdf_bytes
+    assert b"/DeviceRGB" in pdf_bytes
 
 
 def test_branded_appearance_stream_renders():

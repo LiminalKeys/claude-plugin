@@ -32,6 +32,7 @@ from liminalkeys_sign.stamp_layout import (
     value_column_max_width,
 )
 from liminalkeys_sign.stamp_watermark import watermark_rgb_png_bytes
+from liminalkeys_sign.watermark_xobject import draw_baked_watermark_ops
 
 
 def _register_helvetica(stamp: AppearanceContent) -> None:
@@ -112,19 +113,21 @@ class LiminalKeysStamp(AppearanceContent):
         self.style = style
         self.text_params = text_params
 
-    def _embed_watermark_png(
+    def _embed_custom_logo_watermark(
         self,
         wm_data: bytes,
         wm_x: float,
         wm_y: float,
         wm_size: float,
-        *,
-        PdfImage: type,
-    ) -> bytes | None:
+    ) -> bytes:
+        from pyhanko.pdf_utils.images import PdfImage
+
         try:
             from PIL import Image
-        except ImportError:
-            return None
+        except ImportError as exc:
+            raise ImportError(
+                "--stamp-logo requires Pillow (image-support); default LK watermark does not"
+            ) from exc
         wm_img = Image.open(BytesIO(wm_data))
         pdf_img = PdfImage(
             wm_img,
@@ -138,8 +141,6 @@ class LiminalKeysStamp(AppearanceContent):
         return b"q 1 0 0 1 %g %g cm %s Q" % (wm_x, wm_y, wm_draw)
 
     def render(self) -> bytes:
-        from pyhanko.pdf_utils.images import PdfImage
-
         w = float(self.box.width)
         h = float(self.box.height)
         base_ly = scaled_layout(h)
@@ -226,18 +227,22 @@ class LiminalKeysStamp(AppearanceContent):
         ops.append(b"1 1 1 rg 0 0 %g %g re f" % (w, h))
 
         custom = str(self.style.logo_path) if self.style.logo_path else None
-        wm_data = watermark_rgb_png_bytes(custom)
         wm_margin = 2.0 * scale
         avail_h = max(1.0, fields_height - 2 * wm_margin)
         avail_w = max(1.0, w - 2 * pad)
         wm_size = min(avail_h, avail_w)
         wm_x = (w - wm_size) / 2.0
         wm_y = body_floor + wm_margin + (avail_h - wm_size) / 2.0
-        wm_embedded = self._embed_watermark_png(
-            wm_data, wm_x, wm_y, wm_size, PdfImage=PdfImage
-        )
-        if wm_embedded is not None:
-            ops.append(wm_embedded)
+        if custom:
+            wm_data = watermark_rgb_png_bytes(custom)
+            ops.append(self._embed_custom_logo_watermark(wm_data, wm_x, wm_y, wm_size))
+        else:
+            assert self.writer is not None
+            ops.append(
+                draw_baked_watermark_ops(
+                    self, self.writer, wm_x=wm_x, wm_y=wm_y, wm_size=wm_size
+                )
+            )
 
         br, bg, bb = COLOR_BORDER
         ops.append(b"%g %g %g RG %g w 0 0 %g %g re S" % (br, bg, bb, border_w, w, h))
