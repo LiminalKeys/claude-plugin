@@ -1,0 +1,30 @@
+{
+  "description": "Golden values from src/mcp responseSigning/canonical.ts (stablePayloadJson + buildSigningMessage). Regenerate: npm ci in src/mcp && node --import tsx scripts/export-mcp-canonical-golden.ts",
+  "payload": {
+    "z_last": 1,
+    "nested": {
+      "b": 2,
+      "a": {
+        "y": "β",
+        "x": 1
+      }
+    },
+    "items": [
+      3,
+      {
+        "c": "café",
+        "a": 1
+      }
+    ],
+    "signature": "AQID"
+  },
+  "stablePayloadJson": "{\"items\":[3,{\"a\":1,\"c\":\"café\"}],\"nested\":{\"a\":{\"x\":1,\"y\":\"β\"},\"b\":2},\"signature\":\"AQID\",\"z_last\":1}",
+  "signingMessage": {
+    "v": 1,
+    "tool": "sign_hash",
+    "agent_id": "agent01",
+    "nonce": "b25vbmVub25lbm9uZW5vbmU=",
+    "issued_at": "2026-01-01T00:00:00.000Z"
+  },
+  "signingMessageUtf8Base64": "MQpzaWduX2hhc2gKYWdlbnQwMQpiMjV2Ym1WdWIyNWxibTl1Wlc1dmJtVT0KMjAyNi0wMS0wMVQwMDowMDowMC4wMDBaCnsiaXRlbXMiOlszLHsiYSI6MSwiYyI6ImNhZsOpIn1dLCJuZXN0ZWQiOnsiYSI6eyJ4IjoxLCJ5IjoizrIifSwiYiI6Mn0sInNpZ25hdHVyZSI6IkFRSUQiLCJ6X2xhc3QiOjF9"
+}

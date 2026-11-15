@@ -9,6 +9,7 @@
 - Skill **`bin/liminal-sign`**: installs the bundled wheel into a versioned cache venv once per machine/session (no repeated `pip install` each signing run); falls back to `--target` site-packages when `venv` is unavailable.
 - Offline wheels: add **`typing_extensions`** (pyHanko → `aiohttp` dependency) for resolver-free sandbox installs.
 - **SKILL.md**: fixed minimal MCP/tool flow — one certificate list, one chain fetch, no re-listing, no narration between steps; `sign_hash` retry uses the same `approval_id` / `client_nonce`.
+- **Branded visible stamp** (from liminal-keys): neutral plate, LK watermark (`lk-square-mark-cropped.png`), WinAnsi ellipsis, serial grouping, locale/timezone dates, 248×96 default; **visible stamp is prepare default** (`--invisible-signature` to opt out).
 
 ## 0.1.9
 

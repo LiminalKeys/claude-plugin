@@ -35,7 +35,11 @@ Ask **only** if multiple equally valid signing certs remain.
 
 **`get_certificate_chain`** — **`certificate_id`** + **new** `client_nonce`. Write the full PEM chain once to `$WORK/chain.pem`. Do **not** call `list_certificates` or `get_certificate_chain` again in this attempt.
 
+When Console or the user exposes signer **locale** or **timezone** (e.g. `Europe/Madrid`, `de-DE`), pass them on `prepare` (below). Do not guess timezone.
+
 ### 2. Local prepare (one shell command)
+
+**Default:** branded **visible** Liminal Keys stamp (248×96 pt), **last page**, **bottom-right**, LK logo watermark, structured fields (signer, date, issuer, serial when tall enough). Appearance is hashed in CMS signed attributes — set placement/locale **here**, not after `sign_hash`.
 
 ```bash
 WORK=./lk-sign-work
@@ -44,7 +48,16 @@ liminal-sign prepare --pdf "$PDF" --cert-chain "$WORK/chain.pem" \
   --out "$WORK/state.json" --document-label "$DOCUMENT_LABEL"
 ```
 
-Optional visible stamp: add `--visible-signature` and stamp flags (see `liminal-sign prepare -h`). Default is invisible.
+Add stamp overrides only when the user asks (or locale/timezone from cert metadata):
+
+```bash
+# Example: Spanish dates in Madrid time
+liminal-sign prepare --pdf "$PDF" --cert-chain "$WORK/chain.pem" \
+  --out "$WORK/state.json" --document-label "$DOCUMENT_LABEL" \
+  --stamp-locale es-ES --stamp-timezone Europe/Madrid
+```
+
+**Invisible field only** when the user explicitly wants no on-page stamp: add **`--invisible-signature`**.
 
 Read **`$WORK/state.json`**: use **`digest_base64`** and **`previews`** on `sign_hash`. Do not re-run `approval-preview` or a second `prepare` for the same PDF.
 
@@ -83,15 +96,17 @@ Add `--timestamp-response "$WORK/timestamp.der"` when step 3 included a timestam
 - **One** `list_certificates`, **one** `get_certificate_chain`, **one** `prepare`, **one** primary `sign_hash` (retries only collect with same `approval_id` / `client_nonce`).
 - **No** re-listing certs, **no** second chain fetch, **no** extra model commentary between tool calls.
 - **Always** run `finish` (includes mandatory validate); never skip the report.
+- **Do not** use pyHanko default text stamp — branded appearance is automatic unless `--invisible-signature`.
 - v1: RSA / `sha256_rsa` only.
 
-## Visible stamp flags (only when user asks)
+## Stamp overrides (user-requested)
 
 | User says | `prepare` adds |
 |-----------|----------------|
-| Invisible (default) | (none) |
-| Bottom-right, last page | `--visible-signature --stamp-page last --stamp-anchor bottom-right` |
-| Reason on stamp | `--stamp-reason "…"` with `--visible-signature` |
-| Logo / locale | `--stamp-logo path.png` / `--stamp-locale de-DE` |
+| No visible stamp | `--invisible-signature` |
+| Different corner / page | `--stamp-anchor …` / `--stamp-page …` |
+| Reason on stamp | `--stamp-reason "…"` (or use `--document-label`) |
+| Locale / timezone | `--stamp-locale de-DE` / `--stamp-timezone Europe/Madrid` |
+| Custom logo instead of LK watermark | `--stamp-logo path.png` |
 
 See `INSTALL.md` for uploading this skill and MCP connector setup.

@@ -43,14 +43,21 @@ def _cmd_approval_preview(args: argparse.Namespace) -> int:
     return 0
 
 
+def _stamp_visible(args: argparse.Namespace) -> bool:
+    if getattr(args, "invisible_signature", False):
+        return False
+    return True
+
+
 def _stamp_options_from_args(args: argparse.Namespace) -> VisibleStampOptions:
     return VisibleStampOptions(
         page=args.stamp_page,
         anchor=normalize_anchor(args.stamp_anchor),
         margin_pt=args.stamp_margin,
-        reason=(args.stamp_reason or None),
+        reason=(args.stamp_reason or args.document_label),
         logo_path=args.stamp_logo,
         locale=args.stamp_locale,
+        timezone=getattr(args, "stamp_timezone", None),
     )
 
 
@@ -74,12 +81,13 @@ def _resolve_prepare_paths(args: argparse.Namespace) -> tuple[Path, Path, Path, 
 
 
 def _cmd_prepare(args: argparse.Namespace) -> int:
-    stamp_opts = _stamp_options_from_args(args) if args.visible_signature else None
-    if args.stamp_reason and not args.visible_signature:
-        print("prepare: --stamp-reason requires --visible-signature", file=sys.stderr)
+    visible = _stamp_visible(args)
+    stamp_opts = _stamp_options_from_args(args) if visible else None
+    if args.stamp_reason and not visible:
+        print("prepare: --stamp-reason requires a visible stamp (omit --invisible-signature)", file=sys.stderr)
         return 2
-    if args.stamp_logo and not args.visible_signature:
-        print("prepare: --stamp-logo requires --visible-signature", file=sys.stderr)
+    if args.stamp_logo and not visible:
+        print("prepare: --stamp-logo requires a visible stamp (omit --invisible-signature)", file=sys.stderr)
         return 2
     try:
         input_pdf, leaf_cert, work_dir, chain_paths = _resolve_prepare_paths(args)
@@ -90,7 +98,7 @@ def _cmd_prepare(args: argparse.Namespace) -> int:
             chain_paths=chain_paths,
             field_name=args.field_name,
             bytes_reserved=args.bytes_reserved,
-            visible_signature=args.visible_signature,
+            visible_signature=visible,
             stamp_options=stamp_opts,
         )
     except ValueError as exc:
@@ -326,9 +334,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_prepare.add_argument("--field-name", default="LiminalAgentSig")
     p_prepare.add_argument(
+        "--invisible-signature",
+        action="store_true",
+        help="Omit visible stamp (default: branded Liminal Keys stamp, last page bottom-right)",
+    )
+    p_prepare.add_argument(
         "--visible-signature",
         action="store_true",
-        help="Place a visible signature stamp (default: invisible field)",
+        help=argparse.SUPPRESS,
     )
     p_prepare.add_argument(
         "--stamp-page",
@@ -366,6 +379,12 @@ def build_parser() -> argparse.ArgumentParser:
         default="en-US",
         metavar="BCP47",
         help="BCP47 locale for stamp date formatting (default: en-US)",
+    )
+    p_prepare.add_argument(
+        "--stamp-timezone",
+        default=None,
+        metavar="IANA",
+        help="IANA timezone for stamp date (e.g. Europe/Madrid); default: system local",
     )
     p_prepare.add_argument(
         "--bytes-reserved",

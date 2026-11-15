@@ -47,7 +47,7 @@ async def _prepare_async(
     field_name: str,
     bytes_reserved: int,
     *,
-    visible_signature: bool = False,
+    visible_signature: bool = True,
     stamp_options: VisibleStampOptions | None = None,
 ) -> PrepareResult:
     work_dir.mkdir(parents=True, exist_ok=True)
@@ -87,7 +87,9 @@ async def _prepare_async(
             new_field_spec=field_spec,
             stamp_style=stamp_style,
         )
-        appearance_text_params = stamp_appearance_text_params(stamp.reason) if visible_signature else None
+        appearance_text_params = (
+            stamp_appearance_text_params(cert, stamp) if visible_signature else None
+        )
         prep, tbs, output = await pdf_signer.async_digest_doc_for_signing(
             writer,
             bytes_reserved=bytes_reserved,
@@ -129,7 +131,7 @@ def run_prepare(
     chain_paths: Sequence[Path] | None = None,
     field_name: str = "LiminalAgentSig",
     bytes_reserved: int = DEFAULT_BYTES_RESERVED,
-    visible_signature: bool = False,
+    visible_signature: bool = True,
     stamp_options: VisibleStampOptions | None = None,
 ) -> PrepareResult:
     return asyncio.run(

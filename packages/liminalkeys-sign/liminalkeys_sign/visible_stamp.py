@@ -5,33 +5,24 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from pyhanko.pdf_utils.reader import PdfFileReader
 from pyhanko.pdf_utils.rw_common import find_inherited_value_in_tree
-from pyhanko.stamp import TextStampStyle
 
-if TYPE_CHECKING:
-    from pyhanko.pdf_utils.content import PdfContent
+from liminalkeys_sign.liminal_stamp import LiminalKeysStampStyle, patch_sig_appearance_setup
+from liminalkeys_sign.stamp_layout import STAMP_FOOTER_LEFT
+from liminalkeys_sign.stamp_watermark import BRAND_LOGO_SOURCE
+
+patch_sig_appearance_setup()
 
 STAMP_ANCHORS = frozenset({"bottom-right", "bottom-left", "top-right", "top-left"})
 
 DEFAULT_STAMP_WIDTH_PT = 248.0
-DEFAULT_STAMP_HEIGHT_PT = 84.0
+DEFAULT_STAMP_HEIGHT_PT = 96.0
 
-_LOCALE_TS_FORMATS: dict[str, str] = {
-    "en": "%m/%d/%Y %H:%M",
-    "en-us": "%m/%d/%Y %H:%M",
-    "en-gb": "%d/%m/%Y %H:%M",
-    "de": "%d.%m.%Y %H:%M",
-    "de-de": "%d.%m.%Y %H:%M",
-    "fr": "%d/%m/%Y %H:%M",
-    "fr-fr": "%d/%m/%Y %H:%M",
-    "es": "%d/%m/%Y %H:%M",
-    "es-es": "%d/%m/%Y %H:%M",
-    "ja": "%Y/%m/%d %H:%M",
-    "ja-jp": "%Y/%m/%d %H:%M",
-}
+# Re-export for docs/tests
+STAMP_FOOTER_EN = STAMP_FOOTER_LEFT
+LK_LOGO_ASSET = BRAND_LOGO_SOURCE
 
 
 @dataclass(frozen=True)
@@ -44,6 +35,7 @@ class VisibleStampOptions:
     reason: str | None = None
     logo_path: Path | None = None
     locale: str = "en-US"
+    timezone: str | None = None
 
 
 def normalize_anchor(anchor: str) -> str:
@@ -111,38 +103,12 @@ def compute_visible_box(
     return int(ll_x), int(ll_y), int(ur_x), int(ur_y)
 
 
-def locale_timestamp_format(bcp47: str) -> str:
-    tag = bcp47.strip().replace("_", "-").lower()
-    if tag in _LOCALE_TS_FORMATS:
-        return _LOCALE_TS_FORMATS[tag]
-    primary = tag.split("-", 1)[0]
-    return _LOCALE_TS_FORMATS.get(primary, "%Y-%m-%d %H:%M")
-
-
-def _logo_background(logo_path: Path) -> PdfContent:
-    from PIL import Image
-    from pyhanko.pdf_utils.images import PdfImage
-
-    img = Image.open(logo_path)
-    return PdfImage(img, writer=None)
-
-
-def build_text_stamp_style(options: VisibleStampOptions) -> TextStampStyle:
-    ts_format = locale_timestamp_format(options.locale)
-    background: PdfContent | None = None
-    if options.logo_path is not None:
-        background = _logo_background(options.logo_path)
-
-    lines = ["%(signer)s", "%(ts)s"]
-    if options.reason:
-        lines.append("%(reason)s")
-    stamp_text = "\n".join(lines)
-    height_note = options.logo_path is not None
-    return TextStampStyle(
-        stamp_text=stamp_text,
-        timestamp_format=ts_format,
-        background=background,
-        background_opacity=0.35 if height_note else 0.6,
+def build_text_stamp_style(options: VisibleStampOptions) -> LiminalKeysStampStyle:
+    return LiminalKeysStampStyle(
+        locale=options.locale,
+        timezone=options.timezone,
+        reason=options.reason,
+        logo_path=options.logo_path,
     )
 
 
@@ -165,7 +131,27 @@ def resolve_field_placement(
     return on_page, box
 
 
-def stamp_appearance_text_params(reason: str | None) -> dict[str, str] | None:
-    if not reason:
-        return None
-    return {"reason": reason}
+def _cert_issuer_cn(cert: object) -> str:
+    try:
+        native = cert.issuer.native  # type: ignore[attr-defined]
+    except AttributeError:
+        return "Unknown"
+    if isinstance(native, dict):
+        for key in ("common_name", "organization_name"):
+            if key in native:
+                val = native[key]
+                return str(val[0] if isinstance(val, list) else val)
+    try:
+        return cert.issuer.human_friendly  # type: ignore[attr-defined]
+    except AttributeError:
+        return "Unknown"
+
+
+def stamp_appearance_text_params(cert: object, stamp: VisibleStampOptions) -> dict[str, str]:
+    params = {
+        "cert_issuer": _cert_issuer_cn(cert),
+        "cert_serial": format(cert.serial_number, "X"),  # type: ignore[attr-defined]
+    }
+    if stamp.reason:
+        params["reason"] = stamp.reason
+    return params
