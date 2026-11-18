@@ -5,12 +5,28 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKILL_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 WHEELS="${SKILL_DIR}/wheels"
-VERSION="0.1.10"
+VERSION="0.1.12"
+WHEEL="${WHEELS}/liminalkeys_sign-${VERSION}-py3-none-any.whl"
 CACHE_ROOT="${LIMINALKEYS_SIGN_CACHE:-${HOME}/.cache/liminalkeys-sign}"
-VENV="${CACHE_ROOT}/venv-${VERSION}"
-SITE="${CACHE_ROOT}/site-${VERSION}"
+
+_die() {
+  echo "liminal-sign: $*" >&2
+  echo "liminal-sign: Do not write pyHanko signing code — fix the bundled CLI or clear ${CACHE_ROOT}" >&2
+  exit 127
+}
+
+if [[ ! -f "${WHEEL}" ]]; then
+  _die "missing bundled wheel ${WHEEL} (plugin/skill out of date?)"
+fi
+
+WHEEL_SHA="$(sha256sum "${WHEEL}" | awk '{print $1}')"
+CACHE_ID="${VERSION}-${WHEEL_SHA:0:16}"
+VENV="${CACHE_ROOT}/venv-${CACHE_ID}"
+SITE="${CACHE_ROOT}/site-${CACHE_ID}"
 MARKER_VENV="${VENV}/.installed-version"
 MARKER_SITE="${SITE}/.installed-version"
+MARKER_BODY="${VERSION}
+${WHEEL_SHA}"
 
 _run_cli() {
   if [[ -n "${LIMINAL_SIGN_IN_RUN_CLI:-}" ]]; then
@@ -21,32 +37,54 @@ _run_cli() {
   exec python3 -m liminalkeys_sign "$@"
 }
 
-if [[ -f "${MARKER_VENV}" ]] && [[ "$(cat "${MARKER_VENV}")" == "${VERSION}" ]]; then
+_cache_hit_venv() {
+  [[ -f "${MARKER_VENV}" ]] && [[ "$(cat "${MARKER_VENV}")" == "${MARKER_BODY}" ]]
+}
+
+_cache_hit_site() {
+  [[ -f "${MARKER_SITE}" ]] && [[ "$(cat "${MARKER_SITE}")" == "${MARKER_BODY}" ]]
+}
+
+if _cache_hit_venv; then
   # shellcheck disable=SC1091
   source "${VENV}/bin/activate"
   _run_cli "$@"
 fi
 
-if [[ -f "${MARKER_SITE}" ]] && [[ "$(cat "${MARKER_SITE}")" == "${VERSION}" ]]; then
+if _cache_hit_site; then
   export PYTHONPATH="${SITE}${PYTHONPATH:+:${PYTHONPATH}}"
   _run_cli "$@"
 fi
 
+if ! command -v python3 >/dev/null 2>&1; then
+  _die "python3 not found"
+fi
+
+echo "liminal-sign: installing liminalkeys-sign==${VERSION} (wheel sha256 ${WHEEL_SHA:0:16}…)" >&2
+
+_install_ok=false
 if python3 -m venv "${VENV}" >/dev/null 2>&1; then
   # shellcheck disable=SC1091
   source "${VENV}/bin/activate"
-  pip install --quiet --disable-pip-version-check \
+  if pip install --quiet --disable-pip-version-check \
     --no-index --find-links "${WHEELS}" \
-    "liminalkeys-sign==${VERSION}"
-  echo "${VERSION}" > "${MARKER_VENV}"
-  _run_cli "$@"
+    "liminalkeys-sign==${VERSION}"; then
+    printf '%s\n' "${MARKER_BODY}" > "${MARKER_VENV}"
+    _install_ok=true
+    _run_cli "$@"
+  fi
 fi
 
-mkdir -p "${SITE}"
-pip install --quiet --disable-pip-version-check \
-  --no-index --find-links "${WHEELS}" \
-  --target "${SITE}" \
-  "liminalkeys-sign==${VERSION}"
-echo "${VERSION}" > "${MARKER_SITE}"
-export PYTHONPATH="${SITE}${PYTHONPATH:+:${PYTHONPATH}}"
-_run_cli "$@"
+if [[ "${_install_ok}" == false ]]; then
+  rm -rf "${VENV}" 2>/dev/null || true
+  mkdir -p "${SITE}"
+  if ! pip install --quiet --disable-pip-version-check \
+    --no-index --find-links "${WHEELS}" \
+    --target "${SITE}" \
+    "liminalkeys-sign==${VERSION}"; then
+    _die "offline install failed (Python $(python3 -V 2>&1); need cp310+ with matching wheels in ${WHEELS})"
+  fi
+  printf '%s\n' "${MARKER_BODY}" > "${MARKER_SITE}"
+  export PYTHONPATH="${SITE}${PYTHONPATH:+:${PYTHONPATH}}"
+  _run_cli "$@"
+fi

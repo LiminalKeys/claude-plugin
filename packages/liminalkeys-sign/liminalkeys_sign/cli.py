@@ -22,6 +22,10 @@ from liminalkeys_sign.pdf_preview import build_sign_hash_previews
 from liminalkeys_sign.prepare import DEFAULT_BYTES_RESERVED, run_prepare
 from liminalkeys_sign.sign_state import write_sign_state
 from liminalkeys_sign.visible_stamp import VisibleStampOptions, normalize_anchor
+from liminalkeys_sign.stamp_branding_guard import (
+    BrandedStampError,
+    assert_branded_visible_stamp,
+)
 from liminalkeys_sign.validate import run_validate
 from liminalkeys_sign.verify import SignatureVerificationError
 
@@ -104,6 +108,18 @@ def _cmd_prepare(args: argparse.Namespace) -> int:
     except ValueError as exc:
         print(f"prepare failed: {exc}", file=sys.stderr)
         return 2
+    if visible:
+        import pickle
+
+        try:
+            prepared = pickle.loads(result.state_path.read_bytes())
+            assert_branded_visible_stamp(
+                prepared["pdf"],
+                context="prepare (prepared PDF appearance)",
+            )
+        except BrandedStampError as exc:
+            print(f"prepare failed: {exc}", file=sys.stderr)
+            return 2
     print(result.digest_hex)
     if args.out:
         previews = build_sign_hash_previews(
@@ -126,6 +142,7 @@ def _cmd_prepare(args: argparse.Namespace) -> int:
             package_version=__version__,
             document_label=args.document_label,
             approval_preview_path=preview_path,
+            visible_signature=visible,
         )
         print(str(args.out), file=sys.stderr)
     print(
@@ -172,6 +189,15 @@ def _cmd_finish(args: argparse.Namespace) -> int:
     code = _cmd_embed(embed_args)
     if code != 0:
         return code
+    if state.visible_signature:
+        try:
+            assert_branded_visible_stamp(
+                output_pdf.read_bytes(),
+                context="finish (signed PDF)",
+            )
+        except BrandedStampError as exc:
+            print(f"finish failed: {exc}", file=sys.stderr)
+            return 2
     report_path = args.report or output_pdf.with_suffix(".validation.txt")
     trust = args.trust or [leaf_cert]
     validate_args = argparse.Namespace(

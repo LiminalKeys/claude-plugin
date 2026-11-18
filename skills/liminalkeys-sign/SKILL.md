@@ -1,7 +1,7 @@
 ---
 name: "liminalkeys-sign"
 description: "Sign content with a certificate identity in Liminal Keys custody via MCP (hash-only signing; includes optional PAdES PDF helper — private keys never in the sandbox)."
-version: "0.1.10"
+version: "0.1.12"
 ---
 
 # Liminal Keys hash signing (Claude skill)
@@ -14,11 +14,23 @@ Sign a **SHA-256 digest** with a **certificate in Liminal Keys custody**. Privat
 export SKILL_DIR="<folder containing this file>"
 chmod +x "$SKILL_DIR/bin/liminal-sign"
 export PATH="$SKILL_DIR/bin:$PATH"
+liminal-sign --version   # must print liminalkeys-sign 0.1.12
 ```
 
-`liminal-sign` uses a **cached venv** under `~/.cache/liminalkeys-sign` (override with `LIMINALKEYS_SIGN_CACHE`). Do **not** run `pip install` yourself unless `liminal-sign` is missing.
+`liminal-sign` installs the bundled wheel into a **content-addressed cache** under `~/.cache/liminalkeys-sign` (override with `LIMINALKEYS_SIGN_CACHE`). The cache key includes the wheel SHA-256 — **do not** run `pip install liminalkeys-sign` from PyPI or hand-roll a venv unless `liminal-sign` is missing from the skill folder.
+
+If `liminal-sign` fails (non-zero exit, missing wheel, `python3`/`pip` error): **stop the signing attempt**, show the stderr to the user, and **do not** substitute another signing path. **Never** improvise.
 
 MCP: admin-configured Liminal Keys endpoint only. Trust pins ship in the skill; omit `--mcp-trust-config` unless overriding.
+
+### Forbidden (branded stamp)
+
+- **No** Python scripts that import `pyhanko` for `prepare` / `embed` / `TextStampStyle` / `PdfSigner`.
+- **No** pyHanko CLI or tutorial snippets (`Digitally signed by …` / pink stamp artwork).
+- **No** `pip install pyhanko` as a workaround when `liminal-sign` fails.
+- PDF signing is **only** `liminal-sign prepare` → MCP `sign_hash` → `liminal-sign finish`.
+
+When the bundled CLI runs, `prepare` and `finish` **fail closed** if the PDF would show pyHanko's default stamp instead of the Liminal Keys plate (`/LkWm0`, `Signed with Liminal Keys`).
 
 ## Fixed flow
 
@@ -39,7 +51,7 @@ When Console or the user exposes signer **locale** or **timezone** (e.g. `Europe
 
 ### 2. Local prepare (one shell command)
 
-**Default:** branded **visible** Liminal Keys stamp (248×96 pt), **last page**, **bottom-right**, LK logo watermark, structured fields (signer, date, issuer, serial when tall enough). Appearance is hashed in CMS signed attributes — set placement/locale **here**, not after `sign_hash`.
+**Default:** branded **visible** Liminal Keys stamp (248×96 pt), **last page**, **bottom-right**, LK logo watermark (`/LkWm0`), structured fields (signer, date, issuer, serial when tall enough), footer **Signed with Liminal Keys**, dates like **`CET (UTC+1)`** when timezone is set. Appearance is hashed in CMS signed attributes — set placement/locale **here**, not after `sign_hash`.
 
 ```bash
 WORK=./lk-sign-work
@@ -96,8 +108,19 @@ Add `--timestamp-response "$WORK/timestamp.der"` when step 3 included a timestam
 - **One** `list_certificates`, **one** `get_certificate_chain`, **one** `prepare`, **one** primary `sign_hash` (retries only collect with same `approval_id` / `client_nonce`).
 - **No** re-listing certs, **no** second chain fetch, **no** extra model commentary between tool calls.
 - **Always** run `finish` (includes mandatory validate); never skip the report.
-- **Do not** use pyHanko default text stamp — branded appearance is automatic unless `--invisible-signature`.
+- **Only** the bundled `liminal-sign` commands above may create visible stamps — not pyHanko defaults (`Digitally signed by …`).
 - v1: RSA / `sha256_rsa` only.
+
+## Clearing a stale CLI cache
+
+After upgrading the plugin or if the stamp looks like pyHanko's default monospace box:
+
+```bash
+rm -rf "${LIMINALKEYS_SIGN_CACHE:-$HOME/.cache/liminalkeys-sign}"
+liminal-sign --version
+```
+
+Then re-run the signing flow from step 1.
 
 ## Stamp overrides (user-requested)
 

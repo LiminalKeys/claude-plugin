@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.12 (2026-11-18)
+
+- **Root-cause fix for pyHanko default stamps**: `prepare` / `finish` fail closed when the PDF would show pyHanko's `Digitally signed by …` default (`stamp_branding_guard`).
+- **`bin/liminal-sign`**: cache key includes bundled wheel **SHA-256** (not version alone); clear errors when offline install fails (no silent fallback).
+- **SKILL.md**: forbid hand-written pyHanko signing; require `liminal-sign --version` **0.1.12**; document cache reset.
+- **CI**: rebuild check — bundled `skills/liminalkeys-sign/wheels/liminalkeys_sign-*.whl` must match `packages/liminalkeys-sign` source.
+- Plugin/marketplace manifests and skill wheel synced to **0.1.12**.
+
 ## 0.1.10 (2026-11-15)
 
 - **`prepare --out state.json`**: single step for CMS hash, compressed page-1 preview (WebP when Pillow + `pdftoppm` available), and `sign_hash` payload (`digest_base64`, `previews`, artifact paths).

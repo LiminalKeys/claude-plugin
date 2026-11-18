@@ -1,13 +1,13 @@
 # Installing the liminalkeys-sign Claude skill
 
-**Size limit:** Claude rejects skill uploads at **30 MiB**. Releases target **CPython 3.12 and 3.13** (manylinux x86_64) offline wheels to stay under that cap.
+**Size limit:** Claude rejects skill uploads at **30 MiB**. Releases target **CPython 3.12 and 3.13** (manylinux x86_64) offline wheels to stay under that cap. On **macOS** (Claude Code) the same offline set applies; CPython **3.10+** is required (`requires-python` on the package).
 
-## Public download (0.1.10)
+## Public download (0.1.12)
 
 Download the skill zip from Liminal Keys (same layout as this plugin folder):
 
-- **Zip:** https://www.liminalkeys.com/downloads/liminalkeys-sign-skill-0.1.10.zip
-- **SHA-256:** https://www.liminalkeys.com/downloads/liminalkeys-sign-skill-0.1.10.zip.sha256
+- **Zip:** https://www.liminalkeys.com/downloads/liminalkeys-sign-skill-0.1.12.zip
+- **SHA-256:** https://www.liminalkeys.com/downloads/liminalkeys-sign-skill-0.1.12.zip.sha256
 
 Setup context: https://www.liminalkeys.com/docs/agents/
 
@@ -34,7 +34,7 @@ liminal-sign --version
 Manual fallback from `SKILL_DIR`:
 
 ```bash
-pip install --no-index --find-links "$SKILL_DIR/wheels" "liminalkeys-sign==0.1.10"
+pip install --no-index --find-links "$SKILL_DIR/wheels" "liminalkeys-sign==0.1.12"
 ```
 
 If your environment allows PyPI, you may instead run `pip install liminalkeys-sign` once the package is published; the skill zip path avoids waiting on PyPI.

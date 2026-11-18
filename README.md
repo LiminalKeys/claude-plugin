@@ -2,7 +2,7 @@
 
 Liminal Keys is in **public beta**. This marketplace plugin lets Claude **sign content by SHA-256 digest** with a **company certificate in Liminal Keys custody** over MCP (hash only). The bundled **liminalkeys-sign** helper can produce PAdES PDFs; detached digest signing works for any file format. Private keys never enter the Claude sandbox.
 
-**Version:** 0.1.11 (bundles the `liminalkeys-sign` skill with offline CPython 3.12/3.13 wheels)  
+**Version:** 0.1.12 (bundles the `liminalkeys-sign` skill with offline CPython 3.12/3.13 wheels; wheel content hash in `liminal-sign` cache)  
 **License:** Apache-2.0  
 **Publisher:** Liminal Keys · https://www.liminalkeys.com
 

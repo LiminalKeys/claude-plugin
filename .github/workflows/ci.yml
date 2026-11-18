@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  liminalkeys-sign:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install build tooling
+        run: pip install build pytest
+
+      - name: Install package (dev)
+        working-directory: packages/liminalkeys-sign
+        run: pip install -e ".[dev]"
+
+      - name: Test
+        working-directory: packages/liminalkeys-sign
+        run: python -m pytest -q
+
+      - name: Bundled wheel matches source
+        working-directory: packages/liminalkeys-sign
+        run: python scripts/check_bundled_wheel.py
+
+      - name: Offline liminal-sign wrapper (sandbox-style)
+        env:
+          LIMINALKEYS_SIGN_CACHE: /tmp/lk-ci-cache
+        run: |
+          chmod +x skills/liminalkeys-sign/bin/liminal-sign
+          skills/liminalkeys-sign/bin/liminal-sign --version | grep -F '0.1.12'
