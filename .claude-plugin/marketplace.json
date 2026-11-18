@@ -1,6 +1,6 @@
 {
   "name": "liminal-keys",
-  "description": "Official Liminal Keys plugins for Claude (digest signing via MCP; optional PAdES PDF helper).",
+  "description": "Official Liminal Keys plugins for Claude: hash signing via MCP for any custodied certificate; bundled PDF/PAdES skill optional.",
   "owner": {
     "name": "Liminal Keys",
     "url": "https://www.liminalkeys.com"
@@ -9,7 +9,7 @@
     {
       "name": "liminal-keys",
       "source": "./",
-      "description": "Sign any content by SHA-256 digest with Liminal Keys–custodied company certificates over the production MCP connector.",
+      "description": "Sign digests with any signing certificate in Liminal Keys (personal, qualified, company, code signing, …) over MCP; optional local PDF/PAdES helper with branded stamp.",
       "version": "0.1.12"
     }
   ]
