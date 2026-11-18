@@ -2,7 +2,7 @@
 
 Liminal Keys is in **public beta**. This marketplace plugin lets Claude **sign content by SHA-256 digest** with a **company certificate in Liminal Keys custody** over MCP (hash only). The bundled **liminalkeys-sign** helper can produce PAdES PDFs; detached digest signing works for any file format. Private keys never enter the Claude sandbox.
 
-**Version:** 0.1.10 (bundles the `liminalkeys-sign` skill with offline CPython 3.12/3.13 wheels)  
+**Version:** 0.1.11 (bundles the `liminalkeys-sign` skill with offline CPython 3.12/3.13 wheels)  
 **License:** Apache-2.0  
 **Publisher:** Liminal Keys · https://www.liminalkeys.com
 
@@ -11,35 +11,62 @@ Liminal Keys is in **public beta**. This marketplace plugin lets Claude **sign c
 ## Before you start
 
 1. A [Liminal Console](https://console.liminalkeys.com) account and tenant.
-2. Create an **agent API key** in Console (**AI agents** → create key). Keys start with `lkag_`. You need this **before** enabling the plugin so the MCP connector can authenticate.
+2. In Console → **AI agents**, create an **agent** (for OAuth connector binding and policy). You do **not** need an API key to use the default URL-only sign-in.
 
-You’re done when: the plugin is enabled, the agent API key is set for your Claude surface, and the agent can complete a first `sign_hash` on a sample document.
+You’re done when: the marketplace plugin is enabled, you have **connected** the bundled MCP server (`https://mcp.liminalkeys.com/mcp`) and signed in with your Liminal Keys account, and the agent can complete a first `sign_hash` on a sample document.
+
+Full connector details: https://www.liminalkeys.com/docs/agents/
 
 ## Install
 
 Outcome: Claude can resolve a certificate → prepare (optional PAdES) → sign_hash → embed (PDF path) → validate; private keys stay in Liminal Keys custody.
 
+### Connect the MCP server (URL only)
+
+Production endpoint: `https://mcp.liminalkeys.com/mcp` (same URL Console → **AI agents** shows).
+
+Add that URL in Claude and choose **Connect**. Sign in with your Liminal Keys account (Google, Apple, Microsoft work or school, or email code — the same options as Console). Authentication uses **URL-only MCP OAuth** with dynamic client registration: you do not paste a client ID, client secret, or other OAuth app credentials. If you have multiple agents in Console, pick which connection this connector should use when prompted.
+
+This plugin ships `.mcp.json` **without** API-key headers so Claude can complete the OAuth challenge. On **Claude Code**, HTTP MCP servers with no `Authorization` header use MCP OAuth (including dynamic client registration); run **`claude mcp login liminal-keys`** in your shell if you need to (re)authenticate the bundled server name.
+
 ### Claude Code
 
-Add this marketplace, then install the plugin. The marketplace id and plugin id are both `liminal-keys` on purpose (`liminal-keys@liminal-keys` means plugin@marketplace):
+Add this marketplace, install or update the plugin, then start a session and connect as above:
 
 ```bash
 /plugin marketplace add LiminalKeys/claude-plugin
 /plugin install liminal-keys@liminal-keys
 ```
 
-Then set the agent API key in your environment before starting a session:
-
-```bash
-export LIMINAL_KEYS_AGENT_API_KEY=YOUR_LIMINAL_KEYS_AGENT_API_KEY
-```
+To upgrade an existing install, run the same `install` command again after refreshing the marketplace.
 
 ### claude.ai
 
-1. Open **Customize → Plugins → Add marketplace**, add GitHub marketplace `LiminalKeys/claude-plugin`, and enable **Liminal Keys**.
-2. Open the connector / plugin **secret** (or API key) field for this MCP server and paste your Console agent API key as the `x-api-key` value (raw key, no `Bearer` prefix). Prefer that header for Claude.ai custom connectors.
+1. Open **Customize → Plugins**.
+2. Add or refresh the GitHub marketplace **LiminalKeys/claude-plugin**.
+3. Enable **Liminal Keys** and **Connect** the bundled MCP URL (URL-only sign-in as above).
 
-Replace the placeholder with your Console-issued key. Never commit real keys into this repository, `.mcp.json`, or chat history. Other accepted headers on the MCP server include `Authorization: Bearer …` and `X-Liminal-Keys-Agent-Key`.
+### Optional: API key header (hosts without MCP OAuth)
+
+Some clients do not support MCP OAuth yet. In that case you can send a Console-issued `lkag_…` agent API key in **`x-api-key`** instead — **one auth mode per request** (not OAuth and a key together). Issue a 30- or 90-day key in Console → **AI agents**.
+
+Do **not** add a placeholder key to the shipped `.mcp.json` (invalid headers break OAuth). Opt in locally, for example by merging headers into your user or project MCP config:
+
+```json
+{
+  "mcpServers": {
+    "liminal-keys": {
+      "type": "http",
+      "url": "https://mcp.liminalkeys.com/mcp",
+      "headers": {
+        "x-api-key": "${LIMINAL_KEYS_AGENT_API_KEY}"
+      }
+    }
+  }
+}
+```
+
+Set `LIMINAL_KEYS_AGENT_API_KEY` in your environment before starting Claude, or use your host’s secret field for `x-api-key`. Other accepted headers on the MCP server include `Authorization: Bearer …` and `X-Liminal-Keys-Agent-Key`. Never commit real keys into this repository or chat history.
 
 ## What the skill does
 

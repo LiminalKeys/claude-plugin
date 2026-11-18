@@ -10,7 +10,7 @@
       "name": "liminal-keys",
       "source": "./",
       "description": "Sign any content by SHA-256 digest with Liminal Keys–custodied company certificates over the production MCP connector.",
-      "version": "0.1.10"
+      "version": "0.1.11"
     }
   ]
 }
