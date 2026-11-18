@@ -1,62 +1,48 @@
 # Installing the liminalkeys-sign Claude skill
 
-**Size limit:** Claude rejects skill uploads at **30 MiB**. Releases target **CPython 3.12 and 3.13** (manylinux x86_64) offline wheels to stay under that cap. On **macOS** (Claude Code) the same offline set applies; CPython **3.10+** is required (`requires-python` on the package).
+Liminal Keys and PDF signing via this skill are in **public beta**. Liminal Keys is **not** a qualified (or accredited) trust service provider (QTSP).
 
-## Public download (0.1.12)
+**Size limit:** Claude rejects skill uploads at **30 MiB**. Releases target **CPython 3.12 and 3.13** (manylinux x86_64) offline wheels. CPython **3.10+** is required by the package. Agent setup and connector details: https://www.liminalkeys.com/docs/agents/
 
-Download the skill zip from Liminal Keys (same layout as this plugin folder):
+## Bundled with the Claude plugin
 
-- **Zip:** https://www.liminalkeys.com/downloads/liminalkeys-sign-skill-0.1.12.zip
-- **SHA-256:** https://www.liminalkeys.com/downloads/liminalkeys-sign-skill-0.1.12.zip.sha256
+This folder ships inside the **Liminal Keys** marketplace plugin. After install, Claude loads **`SKILL.md`**; keep **`wheels/`** next to it for offline sandbox installs.
 
-Setup context: https://www.liminalkeys.com/docs/agents/
+## Visible stamp (default)
 
-1. Download the zip (and optional `.sha256` sidecar) and verify the checksum if you use the sidecar file.
-2. In Claude (Skills / custom skills), upload the zip or point your workspace at the extracted **`liminalkeys-sign/`** folder at the archive root.
+The default PDF appearance is a **branded visible** Liminal Keys stamp (last page, bottom-right). Add **`--invisible-signature`** on `prepare` only when the user explicitly wants no on-page stamp.
 
-Claude loads **`SKILL.md`** as the skill instructions. Keep **`wheels/`** next to it so offline install works inside the agent sandbox.
+## MCP connector authentication
 
-The zip includes **`liminalkeys-mcp-keys.json`** (public JWKS) and **`liminalkeys_mcp_trust.prod.json`** (host allow list + pinned keys). You do not attach these every chat: after `pip install`, the CLI defaults to the same bundled trust. Pass `--mcp-trust-config` only to override with a custom JSON path.
+**Default:** URL-only MCP OAuth — **Connect** in Claude and sign in with Liminal Keys (same options as Console). No API key in the shipped `.mcp.json`.
 
-Offline wheels cover CPython **3.12–3.13** (manylinux x86_64) including compiled dependencies required by pyHanko (for example `aiohttp`, `lxml`, `cryptography`, **Pillow** for both 3.12 and 3.13). The **default branded stamp** embeds a **pre-baked DeviceRGB image XObject** (`lk-watermark-device-rgb.bin`) without Pillow at runtime (macOS and Linux sandboxes match). **`--stamp-logo`** still requires Pillow (offline wheels on Linux x86_64 cp312/cp313; PyPI when the sandbox allows).
+**Optional:** Console-issued `lkag_…` agent API key in **`x-api-key`** only for hosts that **cannot** use MCP OAuth. Create the key in Console → **AI agents**. Use one auth mode per request.
 
 ## Install the CLI inside the sandbox
-
-Preferred — cached venv (no `pip install` every signing run):
 
 ```bash
 export SKILL_DIR="<skill folder>"
 chmod +x "$SKILL_DIR/bin/liminal-sign"
 export PATH="$SKILL_DIR/bin:$PATH"
-liminal-sign --version
+liminal-sign --version   # expect liminalkeys-sign 0.1.12
 ```
 
-Manual fallback from `SKILL_DIR`:
+`liminal-sign` caches the bundled wheel under `~/.cache/liminalkeys-sign` (wheel content hash + version). After upgrading the plugin:
+
+```bash
+rm -rf "${LIMINALKEYS_SIGN_CACHE:-$HOME/.cache/liminalkeys-sign}"
+```
+
+Manual fallback:
 
 ```bash
 pip install --no-index --find-links "$SKILL_DIR/wheels" "liminalkeys-sign==0.1.12"
 ```
 
-If your environment allows PyPI, you may instead run `pip install liminalkeys-sign` once the package is published; the skill zip path avoids waiting on PyPI.
+Offline wheels include pyHanko dependencies (for example `cryptography`, `lxml`, `aiohttp`; **Pillow** for `--stamp-logo` only). The **default** watermark uses pre-baked `lk-watermark-device-rgb.bin` (`/LkWm0`) without Pillow at runtime.
 
-**PAdES B-T validation:** `validate --trust` anchors the **signer** chain only. RFC 3161 timestamp (TSA) chains are separate — supply **`--tsa-trust`** with the TSA root/intermediate PEM(s) when needed (FreeTSA is not under a typical FNMT signer anchor). Timestamps are **optional**; default MCP TSA is **FreeTSA** (**non-qualified** — disclose to end users). Exit code follows pyHanko’s overall **INVALID/VALID** bottom line; use **`--allow-untrusted-timestamp`** only if you accept a warning when the signer is OK but TSA trust failed.
+**PAdES B-T:** optional MCP `timestamp` (RFC 3161; default TSA is FreeTSA, a non-qualified time-stamping service). `finish` runs a local technical validation, not legal or trust-list validation.
 
-PDF signing via this skill is **closed beta / design-partner tooling**. Liminal Keys is not a qualified trust service provider.
+The skill zip ships **`liminalkeys-mcp-keys.json`** and **`liminalkeys_mcp_trust.prod.json`**; the CLI uses bundled trust by default.
 
-### Sample agent prompts (visible vs invisible)
-
-- **Invisible (default):** “Sign this PDF without a visible stamp.” → `prepare` with no `--visible-signature`.
-- **Last page, bottom-right:** “Put the signature in the bottom-right corner of the last page with a normal margin.” → `--visible-signature --stamp-page last --stamp-anchor bottom-right`.
-- **Reason line:** “Add a visible stamp that says this is for vendor onboarding.” → add `--stamp-reason "Vendor onboarding"`.
-- **Logo + locale:** “Use our PNG logo on the stamp and show dates in German format.” → `--stamp-logo ./brand.png --stamp-locale de-DE`.
-
-## Liminal Keys MCP connector (high level)
-
-Configure the **Liminal Keys MCP connector** in Claude with:
-
-- The **admin-configured MCP endpoint** from Liminal Console (your tenant’s official host — do not use unofficial URLs).
-- **Authentication** with your Console-issued `lkag_…` key. Claude.ai custom connectors reliably send **`x-api-key`** (raw key) or **`Authorization: Bearer …`**; the MCP server also accepts **`X-Liminal-Keys-Agent-Key`** for other clients. Store the key in Claude’s connector secret settings, not in the skill zip or chat.
-
-The skill and CLI enforce pinned hosts and response signing keys in code; connector setup must match that trust model. See **`SKILL.md`** for the signing tool order and the product docs for MCP pairing details.
-
-No enrollment secrets, private keys, or Key Vault material belong in the skill archive.
+See **`SKILL.md`** for the signing tool order.

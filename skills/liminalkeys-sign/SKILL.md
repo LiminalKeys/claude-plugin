@@ -73,7 +73,11 @@ liminal-sign prepare --pdf "$PDF" --cert-chain "$WORK/chain.pem" \
 
 Read **`$WORK/state.json`**: use **`digest_base64`** and **`previews`** on `sign_hash`. Do not re-run `approval-preview` or a second `prepare` for the same PDF.
 
+**Approval preview disclosure:** `previews` may include a **low-resolution image of the PDF first page** (or a blank placeholder) so approvers can recognise the document. It is generated locally and is **not** cryptographically bound to the digest; approvers must rely on the document label and their own judgement.
+
 ### 3. `sign_hash` (one call; long-poll)
+
+**Before calling `sign_hash`**, tell the user in **one line** which certificate (**subject/CN** from step 1) will sign which document (`$DOCUMENT_LABEL` / file name).
 
 Call **once** with:
 
