@@ -71,7 +71,7 @@ def main() -> int:
         action="append",
         dest="urls",
         default=[],
-        help="Override JWKS URL (repeatable). Defaults to production host + Azure fallback.",
+        help="Override JWKS URL (repeatable). Defaults to production host + configured fallback.",
     )
     args = parser.parse_args()
     urls = tuple(args.urls) if args.urls else DEFAULT_URLS

@@ -1,8 +1,8 @@
 {
   "name": "liminal-keys",
   "displayName": "Liminal Keys",
-  "version": "0.1.11",
-  "description": "Sign any content by SHA-256 digest with company certificates in Liminal Keys custody via MCP. Optional PAdES PDF helper bundled. Private keys never enter the agent sandbox.",
+  "version": "0.1.12",
+  "description": "Request signatures over SHA-256 digests with any signing certificate held in Liminal Keys, over MCP (OAuth sign-in; API key optional). Format-agnostic: use it to build PAdES, CAdES, XAdES and other formats. Bundled skill adds a PDF helper with a visible branded stamp. Private keys stay with Liminal Keys.",
   "author": {
     "name": "Liminal Keys",
     "url": "https://www.liminalkeys.com"

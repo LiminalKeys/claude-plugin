@@ -8,7 +8,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
-STATE_VERSION = 2
+STATE_VERSION = 3
 
 
 @dataclass(frozen=True)
@@ -23,6 +23,7 @@ class SignState:
     paths: dict[str, str]
     package_version: str
     document_label: str | None = None
+    visible_signature: bool = True
 
     def to_json(self) -> str:
         return json.dumps(asdict(self), indent=2, sort_keys=True)
@@ -30,6 +31,8 @@ class SignState:
     @classmethod
     def from_path(cls, path: Path) -> SignState:
         data = json.loads(path.read_text(encoding="utf-8"))
+        if "visible_signature" not in data:
+            data["visible_signature"] = True
         return cls(**data)
 
 
@@ -54,6 +57,7 @@ def write_sign_state(
     package_version: str,
     document_label: str | None = None,
     approval_preview_path: Path | None = None,
+    visible_signature: bool = True,
 ) -> SignState:
     paths: dict[str, str] = {
         "signed_attrs": str(signed_attrs_path.resolve()),
@@ -73,6 +77,7 @@ def write_sign_state(
         paths=paths,
         package_version=package_version,
         document_label=document_label,
+        visible_signature=visible_signature,
     )
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(state.to_json(), encoding="utf-8")
