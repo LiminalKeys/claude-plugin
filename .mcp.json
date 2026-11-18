@@ -2,10 +2,7 @@
   "mcpServers": {
     "liminal-keys": {
       "type": "http",
-      "url": "https://mcp.liminalkeys.com/mcp",
-      "headers": {
-        "x-api-key": "${LIMINAL_KEYS_AGENT_API_KEY:-YOUR_LIMINAL_KEYS_AGENT_API_KEY}"
-      }
+      "url": "https://mcp.liminalkeys.com/mcp"
     }
   }
 }
