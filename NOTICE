@@ -1,0 +1,8 @@
+Liminal Keys Claude plugin
+Copyright 2026 Liminal Keys, SL
+
+Licensed under the Apache License, Version 2.0.
+
+The bundled `liminalkeys-sign` skill ships third-party Python wheels (for example pyHanko,
+cryptography, and lxml) under their respective licenses. See `skills/liminalkeys-sign/NOTICE`
+and per-wheel `METADATA` / `LICENSE` inside each file in `skills/liminalkeys-sign/wheels/`.

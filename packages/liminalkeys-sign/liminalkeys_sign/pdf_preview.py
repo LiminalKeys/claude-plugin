@@ -54,7 +54,7 @@ def _pdftoppm_png(pdf: Path, *, dpi: int = 72) -> bytes | None:
 
 def _shrink_image(png_bytes: bytes) -> tuple[bytes, str]:
     try:
-        from PIL import Image  # pillow bundled in skill wheels
+        from PIL import Image  # optional; bundled WebP shrink when Pillow is present
     except ImportError:
         return png_bytes, "image/png"
     import io

@@ -3,6 +3,8 @@
 ## 0.1.13 (2026-11-22)
 
 - **Visible stamp value column**: measure Signed by / Reason / Issuer / Serial text with Adobe Helvetica AFM widths (WinAnsi path); shrink row font down to 70% before truncating with a single ellipsis so long names (e.g. `PERONA REQUENA ALMUDENA`) no longer clip past the plate edge.
+- **Plugin directory**: drop bundled Pillow wheels (~7.7 MiB each; over Anthropic's 5 MiB per-file cap). Default PDF stamp still uses pre-baked **`lk-watermark-device-rgb.bin`** (`/LkWm0`) with no Pillow; approval previews fall back to PNG when Pillow is absent; `--stamp-logo` works when the sandbox already has Pillow.
+- Plugin/marketplace manifests **0.1.13**, directory URLs, icon, and README aligned for Claude plugin directory submission.
 
 ## 0.1.12 (2026-11-18)
 
