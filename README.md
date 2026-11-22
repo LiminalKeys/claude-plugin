@@ -1,6 +1,15 @@
 # Liminal Keys plugin for Claude
 
-Liminal Keys is in **public beta**. This plugin lets Claude request a **SHA-256 digest signature** with **any signing certificate you or your organization hold in Liminal Keys** (RSA with SHA-256 today). Signing is **format-agnostic at the cryptographic level**: the MCP server signs the hash, and you can use it to build **PAdES, CAdES, XAdES and other formats**; the format and its conformance depend on the client that computes the digest and assembles the file. Apart from the bundled PDF helper, this repository does not build those containers. The bundled **liminalkeys-sign** skill adds a local **PDF/PAdES** path with a visible branded stamp on the page. Private keys are held by Liminal Keys and are not sent to Claude, the sandbox or this plugin.
+**Liminal Keys** lets AI agents sign documents and digests with a certificate you or your organization hold. Private keys stay in Key Vault and are never sent to Claude, the sandbox, or this plugin. Workspace policy (deny, require approval, or auto-sign) is the control layer: Claude never signs on its own authority; the signature is attributed to the certificate holder.
+
+This repository is the official **Claude plugin** (`liminal-keys`, currently 0.1.12): it installs the `liminalkeys-sign` skill and wires the MCP connector. The bundled skill adds a local **PDF/PAdES** path with a branded visible stamp (or an invisible signature). Start here:
+
+- [Sign PDFs and documents with Claude (AI agents docs)](https://www.liminalkeys.com/docs/agents/)
+- Company site: [liminalkeys.com](https://www.liminalkeys.com/)
+
+Liminal Keys also supports a separate **app and code signing** workflow (Mac, Xcode, CI). That is not this repository — see [app & code signing docs](https://www.liminalkeys.com/docs/app-signing/).
+
+Liminal Keys is in **public beta**. This plugin lets Claude request a **SHA-256 digest signature** with **any signing certificate you or your organization hold in Liminal Keys** (RSA with SHA-256 today). Signing is **format-agnostic at the cryptographic level**: the MCP server signs the hash, and you can use it to build **PAdES, CAdES, XAdES and other formats**; the format and its conformance depend on the client that computes the digest and assembles the file. Apart from the bundled PDF helper, this repository does not build those containers. The bundled **liminalkeys-sign** skill adds a local **PDF/PAdES** path with a branded visible stamp (or an invisible signature). Private keys are held by Liminal Keys and are not sent to Claude, the sandbox or this plugin.
 
 **Version:** 0.1.12 (bundles the `liminalkeys-sign` skill with offline CPython 3.12/3.13 wheels)  
 **License:** Apache-2.0  
