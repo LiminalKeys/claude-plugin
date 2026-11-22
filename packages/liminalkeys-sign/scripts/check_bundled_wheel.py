@@ -15,6 +15,13 @@ REPO = ROOT.parents[1]
 BUNDLED_DIR = REPO / "skills" / "liminalkeys-sign" / "wheels"
 
 
+def _normalize_payload_bytes(name: str, data: bytes) -> bytes:
+    """LF-normalize text payloads so Linux/Windows wheel builds compare equal."""
+    if name.endswith((".py", ".json", ".md", ".txt")):
+        return data.replace(b"\r\n", b"\n")
+    return data
+
+
 def _wheel_payload_sha256(path: Path) -> str:
     """Hash liminalkeys_sign package files inside the wheel (ignores RECORD timestamps)."""
     h = hashlib.sha256()
@@ -27,7 +34,7 @@ def _wheel_payload_sha256(path: Path) -> str:
         for name in names:
             h.update(name.encode("utf-8"))
             h.update(b"\0")
-            h.update(zf.read(name))
+            h.update(_normalize_payload_bytes(name, zf.read(name)))
     return h.hexdigest()
 
 
