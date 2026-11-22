@@ -1,14 +1,28 @@
 {
   "name": "liminal-keys",
   "displayName": "Liminal Keys",
-  "version": "0.1.12",
-  "description": "Request signatures over SHA-256 digests with any signing certificate held in Liminal Keys, over MCP (OAuth sign-in; API key optional). Format-agnostic: use it to build PAdES, CAdES, XAdES and other formats. Bundled skill adds a PDF helper with a visible branded stamp. Private keys stay with Liminal Keys.",
+  "version": "0.1.13",
+  "description": "Sign documents and files in Claude with your own certificate. Private keys stay in Liminal Keys, and your rules and phone approval can gate every signature. PDFs can come back with a visible stamp; other file types can be signed too.",
   "author": {
     "name": "Liminal Keys",
+    "email": "support@liminalkeys.com",
     "url": "https://www.liminalkeys.com"
   },
   "homepage": "https://www.liminalkeys.com",
   "repository": "https://github.com/LiminalKeys/claude-plugin",
   "license": "Apache-2.0",
-  "keywords": ["liminal-keys", "signing", "mcp", "certificates", "pades", "pdf", "digest"]
+  "icon": "./logo.png",
+  "documentationUrl": "https://www.liminalkeys.com/docs/agents/claude/",
+  "supportUrl": "https://www.liminalkeys.com/docs/agents/",
+  "privacyPolicyUrl": "https://www.liminalkeys.com/privacy",
+  "termsOfServiceUrl": "https://www.liminalkeys.com/terms",
+  "keywords": [
+    "liminal-keys",
+    "signing",
+    "documents",
+    "certificates",
+    "electronic-signature",
+    "pdf",
+    "mcp"
+  ]
 }

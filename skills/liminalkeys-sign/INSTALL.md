@@ -39,7 +39,7 @@ Manual fallback:
 pip install --no-index --find-links "$SKILL_DIR/wheels" "liminalkeys-sign==0.1.13"
 ```
 
-Offline wheels include pyHanko dependencies (for example `cryptography`, `lxml`, `aiohttp`; **Pillow** for `--stamp-logo` only). The **default** watermark uses pre-baked `lk-watermark-device-rgb.bin` (`/LkWm0`) without Pillow at runtime.
+Offline wheels include pyHanko dependencies (for example `cryptography`, `lxml`, `aiohttp`). **Pillow is not bundled** (Anthropic's plugin directory caps each file at 5 MiB; Pillow wheels exceed that). The **default** visible stamp uses pre-baked `lk-watermark-device-rgb.bin` (`/LkWm0`) with **no Pillow** at runtime. If the sandbox already has Pillow, `--stamp-logo` and smaller WebP approval previews may work; otherwise those features fall back gracefully (default LK stamp and PNG previews).
 
 **PAdES B-T:** optional MCP `timestamp` (RFC 3161; default TSA is FreeTSA, a non-qualified time-stamping service). `finish` runs a local technical validation, not legal or trust-list validation.
 

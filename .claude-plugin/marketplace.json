@@ -1,6 +1,6 @@
 {
   "name": "liminal-keys",
-  "description": "Liminal Keys plugins for use with Claude: hash signing over MCP with certificates held in Liminal Keys; optional PDF signing skill. Not made or endorsed by Anthropic.",
+  "description": "Sign documents and files in Claude with your own certificate. Private keys stay in Liminal Keys; rules and phone approval can gate every signature. PDFs can show a visible stamp; other file types are supported too. Not made or endorsed by Anthropic.",
   "owner": {
     "name": "Liminal Keys",
     "url": "https://www.liminalkeys.com"
@@ -9,8 +9,8 @@
     {
       "name": "liminal-keys",
       "source": "./",
-      "description": "Request signatures over a digest with any signing certificate held in Liminal Keys, over MCP. Format-agnostic (PAdES, CAdES, XAdES and others). Optional PDF helper with visible stamp. Legal effect depends on your certificate, setup and applicable law.",
-      "version": "0.1.12"
+      "description": "Sign documents and files in Claude with certificates held in Liminal Keys. Cryptographic signing over MCP with optional PDF/PAdES helper and visible stamp. Legal effect depends on your certificate, setup, and applicable law.",
+      "version": "0.1.13"
     }
   ]
 }
