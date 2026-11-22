@@ -24,7 +24,7 @@ The default PDF appearance is a **branded visible** Liminal Keys stamp (last pag
 export SKILL_DIR="<skill folder>"
 chmod +x "$SKILL_DIR/bin/liminal-sign"
 export PATH="$SKILL_DIR/bin:$PATH"
-liminal-sign --version   # expect liminalkeys-sign 0.1.12
+liminal-sign --version   # expect liminalkeys-sign 0.1.13
 ```
 
 `liminal-sign` caches the bundled wheel under `~/.cache/liminalkeys-sign` (wheel content hash + version). After upgrading the plugin:
@@ -36,7 +36,7 @@ rm -rf "${LIMINALKEYS_SIGN_CACHE:-$HOME/.cache/liminalkeys-sign}"
 Manual fallback:
 
 ```bash
-pip install --no-index --find-links "$SKILL_DIR/wheels" "liminalkeys-sign==0.1.12"
+pip install --no-index --find-links "$SKILL_DIR/wheels" "liminalkeys-sign==0.1.13"
 ```
 
 Offline wheels include pyHanko dependencies (for example `cryptography`, `lxml`, `aiohttp`; **Pillow** for `--stamp-logo` only). The **default** watermark uses pre-baked `lk-watermark-device-rgb.bin` (`/LkWm0`) without Pillow at runtime.

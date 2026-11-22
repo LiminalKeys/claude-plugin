@@ -1,7 +1,7 @@
 ---
 name: "liminalkeys-sign"
 description: "Sign content with a certificate identity in Liminal Keys custody via MCP (hash-only signing; includes optional PAdES PDF helper — private keys never in the sandbox)."
-version: "0.1.12"
+version: "0.1.13"
 ---
 
 # Liminal Keys hash signing (Claude skill)
@@ -14,7 +14,7 @@ Sign a **SHA-256 digest** with a **certificate in Liminal Keys custody**. Privat
 export SKILL_DIR="<folder containing this file>"
 chmod +x "$SKILL_DIR/bin/liminal-sign"
 export PATH="$SKILL_DIR/bin:$PATH"
-liminal-sign --version   # must print liminalkeys-sign 0.1.12
+liminal-sign --version   # must print liminalkeys-sign 0.1.13
 ```
 
 `liminal-sign` installs the bundled wheel into a **content-addressed cache** under `~/.cache/liminalkeys-sign` (override with `LIMINALKEYS_SIGN_CACHE`). The cache key includes the wheel SHA-256 — **do not** run `pip install liminalkeys-sign` from PyPI or hand-roll a venv unless `liminal-sign` is missing from the skill folder.

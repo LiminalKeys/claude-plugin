@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.13 (2026-11-22)
+
+- **Visible stamp value column**: measure Signed by / Reason / Issuer / Serial text with Adobe Helvetica AFM widths (WinAnsi path); shrink row font down to 70% before truncating with a single ellipsis so long names (e.g. `PERONA REQUENA ALMUDENA`) no longer clip past the plate edge.
+
 ## 0.1.12 (2026-11-18)
 
 - **Root-cause fix for pyHanko default stamps**: `prepare` / `finish` fail closed when the PDF would show pyHanko's `Digitally signed by …` default (`stamp_branding_guard`).
