@@ -21,6 +21,7 @@ from liminalkeys_sign.stamp_layout import (
     COLOR_VALUE,
     SERIAL_MIN_HEIGHT_PT,
     STAMP_FOOTER_LEFT,
+    fit_value_in_column,
     footer_reserved_height,
     fit_field_typography,
     pdf_escape,
@@ -28,7 +29,6 @@ from liminalkeys_sign.stamp_layout import (
     text_width,
     strip_apple_code_sign_cn_prefix,
     truncate_cert_serial,
-    truncate_ellipsis,
     value_column_max_width,
 )
 from liminalkeys_sign.stamp_watermark import watermark_rgb_png_bytes
@@ -180,43 +180,45 @@ class LiminalKeysStamp(AppearanceContent):
         signer_raw = strip_apple_code_sign_cn_prefix(
             str(self.text_params.get("signer") or "Unknown")
         )
-        signer = truncate_ellipsis(
+        signer_fit = fit_value_in_column(
             signer_raw,
             "Helvetica-Bold",
             signer_value_size,
             value_max_w,
         )
-        date_display = truncate_ellipsis(
+        date_fit = fit_value_in_column(
             str(self.text_params.get("date_display") or self.text_params.get("ts") or ""),
             "Helvetica",
             body_value_size,
             value_max_w,
         )
-        issuer = truncate_ellipsis(
+        issuer_fit = fit_value_in_column(
             str(self.text_params.get("cert_issuer") or "n/a"),
             "Helvetica",
             body_value_size,
             value_max_w,
         )
 
-        field_values: dict[str, str] = {
-            "Signed by": signer,
-            "Date": date_display,
-            "Issuer": issuer,
+        fitted_fields: dict[str, tuple[str, float]] = {
+            "Signed by": (signer_fit.text, signer_fit.size_pt),
+            "Date": (date_fit.text, date_fit.size_pt),
+            "Issuer": (issuer_fit.text, issuer_fit.size_pt),
         }
         if reason:
-            field_values["Reason"] = truncate_ellipsis(
+            reason_fit = fit_value_in_column(
                 str(reason), "Helvetica", body_value_size, value_max_w
             )
+            fitted_fields["Reason"] = (reason_fit.text, reason_fit.size_pt)
         if include_serial:
-            field_values["Serial"] = truncate_cert_serial(
+            serial_fit = truncate_cert_serial(
                 serial, "Helvetica", body_value_size, value_max_w
             )
+            fitted_fields["Serial"] = (serial_fit.text, serial_fit.size_pt)
 
         rows: list[tuple[str, str, str, float]] = []
-        for label, font_res, is_signer in skeleton:
-            val_size = signer_value_size if is_signer else body_value_size
-            rows.append((label, field_values[label], font_res, val_size))
+        for label, font_res, _is_signer in skeleton:
+            val_text, val_size = fitted_fields[label]
+            rows.append((label, val_text, font_res, val_size))
 
         footer_size = ly["footer_size"]
         body_floor = footer_reserved_height(footer_size, pad, scale)

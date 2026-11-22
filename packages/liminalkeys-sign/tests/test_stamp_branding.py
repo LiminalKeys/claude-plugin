@@ -163,7 +163,10 @@ def test_pdf_winansi_ellipsis_and_accents():
 def test_stamp_renders_winansi_signer_and_ellipsis():
     w = PdfFileWriter()
     style = build_text_stamp_style(VisibleStampOptions())
-    cn = "Developer ID Application: Example Corp (TEAMID)"
+    cn = (
+        "Developer ID Application: Example Corp (TEAMID) "
+        "Regional Office European Operations Division"
+    )
     stream = style.create_stamp(
         w,
         layout.BoxConstraints(width=180, height=60),
@@ -179,12 +182,11 @@ def test_stamp_renders_winansi_signer_and_ellipsis():
 
 
 def test_truncate_cert_serial_long_hex():
-    from liminalkeys_sign.stamp_layout import truncate_cert_serial
+    from liminalkeys_sign.stamp_layout import ELLIPSIS, truncate_cert_serial
 
     raw = "5A327F21E483F0AAAF4F767BE932F"
-    from liminalkeys_sign.stamp_layout import ELLIPSIS
-
-    out = truncate_cert_serial(raw, "Helvetica", 6.5, 72.0)
+    fitted = truncate_cert_serial(raw, "Helvetica", 6.5, 48.0)
+    out = fitted.text
     assert out.endswith(ELLIPSIS)
     assert "5A32" in out
     assert len(out) <= 20
@@ -202,7 +204,7 @@ def test_truncate_long_common_name():
 def test_truncate_ellipsis_rstrip_before_ellipsis():
     from liminalkeys_sign.stamp_layout import ELLIPSIS, truncate_ellipsis
 
-    out = truncate_ellipsis("Hello brave world   ", "Helvetica", 6.5, 52.0)
+    out = truncate_ellipsis("Hello brave world   ", "Helvetica", 6.5, 36.0)
     assert out.endswith(ELLIPSIS)
     assert not out.endswith(" " + ELLIPSIS)
     assert " …" not in out
@@ -248,16 +250,14 @@ def test_stamp_signer_uses_stripped_apple_cn():
 
 
 def test_serial_truncation_respects_value_column_width():
-    from liminalkeys_sign.stamp_layout import truncate_cert_serial, value_column_max_width
+    from liminalkeys_sign.stamp_layout import text_width, truncate_cert_serial, value_column_max_width
 
     w = 248.0
     scale = 96.0 / 60.0
     max_w = value_column_max_width(w, scale)
     raw = "5A327F21E483F0AAAF4F767BE932F"
-    out = truncate_cert_serial(raw, "Helvetica", 6.5, max_w)
-    from liminalkeys_sign.stamp_layout import text_width
-
-    assert text_width(out, "Helvetica", 6.5, hex_mode=True) <= max_w + 0.5
+    fitted = truncate_cert_serial(raw, "Helvetica", 6.5, max_w)
+    assert text_width(fitted.text, "Helvetica", fitted.size_pt) <= max_w + 0.5
 
 
 def test_serial_row_only_when_tall_enough():
@@ -296,3 +296,61 @@ def test_serial_row_only_when_tall_enough():
     assert b"Serial" not in short
     assert b"Serial" in tall
     assert b"Serial" in tall_with_reason
+
+
+def test_long_signer_name_fits_value_column():
+    from liminalkeys_sign.stamp_layout import (
+        ELLIPSIS,
+        fit_value_in_column,
+        scaled_layout,
+        text_width,
+        value_column_max_width,
+    )
+
+    name = "PERONA REQUENA ALMUDENA"
+    w, h = 248.0, 96.0
+    max_w = value_column_max_width(w, h / 60.0)
+    ly = scaled_layout(h)
+    nominal = ly["signer_value_size"]
+    fitted = fit_value_in_column(name, "Helvetica-Bold", nominal, max_w)
+    assert text_width(fitted.text, "Helvetica-Bold", fitted.size_pt) <= max_w + 0.05
+    nominal_w = text_width(name, "Helvetica-Bold", nominal)
+    if nominal_w > max_w:
+        assert fitted.size_pt < nominal or fitted.text.endswith(ELLIPSIS)
+
+
+def test_fit_value_accented_name_shrink_or_ellipsis():
+    from liminalkeys_sign.stamp_layout import ELLIPSIS, fit_value_in_column, text_width
+
+    name = "GARCÍA PÉREZ MARÍA DOLORES DE LA CRUZ"
+    fitted = fit_value_in_column(name, "Helvetica-Bold", 10.4, 90.0)
+    assert text_width(fitted.text, "Helvetica-Bold", fitted.size_pt) <= 90.05
+    assert fitted.text  # cp1252 path
+    if text_width(name, "Helvetica-Bold", 10.4) > 90.0:
+        assert fitted.size_pt < 10.4 or fitted.text.endswith(ELLIPSIS)
+
+
+def test_stamp_long_signer_stream_contains_no_clipped_tail():
+    from liminalkeys_sign.stamp_layout import fit_value_in_column, scaled_layout, value_column_max_width
+
+    w = PdfFileWriter()
+    style = build_text_stamp_style(VisibleStampOptions(reason="Contrato de trabajo importante"))
+    name = "PERONA REQUENA ALMUDENA"
+    box = layout.BoxConstraints(width=248, height=96)
+    stream = style.create_stamp(
+        w,
+        box,
+        {
+            "signer": name,
+            "date_display": "2026-11-22 18:30 UTC",
+            "cert_issuer": "ACME LONG ISSUER AUTHORITY ROOT CERTIFICATION UNIT",
+            "cert_serial": "5A327F21E483F0AAAF4F767BE932F",
+            "reason": "Contrato de trabajo importante",
+        },
+    ).render()
+    assert b"PERONA" in stream
+    max_w = value_column_max_width(248.0, 96.0 / 60.0)
+    nominal = scaled_layout(96.0)["signer_value_size"]
+    fitted = fit_value_in_column(name, "Helvetica-Bold", nominal, max_w)
+    assert fitted.size_pt <= nominal + 0.01
+    assert fitted.size_pt >= nominal * 0.7 - 0.01

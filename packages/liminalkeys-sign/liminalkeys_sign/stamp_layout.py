@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from datetime import datetime
 from zoneinfo import ZoneInfo
+
+from liminalkeys_sign.stamp_font_metrics import measure_text_width
 
 try:
     import tzlocal
@@ -40,14 +43,8 @@ APPLE_CODE_SIGN_CN_PREFIXES: tuple[str, ...] = (
     "Mac Developer: ",
 )
 
-_HELV_WIDTH_PER_EM: dict[tuple[str, float], float] = {
-    ("Helvetica", 5.0): 0.46,
-    ("Helvetica", 5.5): 0.48,
-    ("Helvetica", 6.5): 0.52,
-    ("Helvetica-Bold", 8.0): 0.54,
-}
-
-_HEX_WIDTH_FACTOR = 1.08
+MIN_FONT_SCALE = 0.7
+FONT_FIT_STEP_PT = 0.25
 
 
 def _clamp_pt(base: float, s: float, floor: float = 5.0) -> float:
@@ -167,15 +164,9 @@ def pdf_escape(text: str) -> str:
 
 
 def text_width(text: str, font: str, size: float, *, hex_mode: bool = False) -> float:
-    per_em = 0.5
-    for key, val in _HELV_WIDTH_PER_EM.items():
-        if key[0] == font and abs(key[1] - size) < 0.6:
-            per_em = val
-            break
-    w = len(text) * size * per_em
-    if hex_mode and re.fullmatch(r"[0-9A-F0-9" + re.escape(ELLIPSIS) + r" ]+", text):
-        w *= _HEX_WIDTH_FACTOR
-    return w
+    """Width in pt matching PDF Type1 Helvetica strings (``hex_mode`` kept for callers)."""
+    del hex_mode
+    return measure_text_width(text, font, size)
 
 
 def strip_apple_code_sign_cn_prefix(common_name: str) -> str:
@@ -206,31 +197,78 @@ def truncate_ellipsis(text: str, font: str, size: float, max_width: float) -> st
     return body + ell if body else ell
 
 
+@dataclass(frozen=True)
+class FittedValue:
+    text: str
+    size_pt: float
+
+
+def fit_value_in_column(
+    text: str,
+    font: str,
+    nominal_size: float,
+    max_width: float,
+    *,
+    min_scale: float = MIN_FONT_SCALE,
+) -> FittedValue:
+    """Shrink point size down to ``min_scale``, then truncate with a single ellipsis."""
+    cleaned = text.replace("\n", " ").strip()
+    if not cleaned:
+        return FittedValue(cleaned, nominal_size)
+    floor = max(MIN_FIELD_PT, nominal_size * min_scale)
+    size = float(nominal_size)
+    while size > floor + 1e-6:
+        if text_width(cleaned, font, size) <= max_width:
+            return FittedValue(cleaned, size)
+        size -= FONT_FIT_STEP_PT
+    size = max(floor, size)
+    if text_width(cleaned, font, size) <= max_width:
+        return FittedValue(cleaned, size)
+    return FittedValue(truncate_ellipsis(cleaned, font, size, max_width), size)
+
+
 def _hex_grouped(token: str, group: int) -> str:
     return " ".join(token[i : i + group] for i in range(0, len(token), group))
 
 
-def truncate_cert_serial(serial: str, font: str, size: float, max_width: float) -> str:
+def truncate_cert_serial(
+    serial: str,
+    font: str,
+    nominal_size: float,
+    max_width: float,
+    *,
+    min_scale: float = MIN_FONT_SCALE,
+) -> FittedValue:
     """
     Uppercase hex; show groups of 4 or pairs when they fit; else first 16 chars + ….
+    Uses the same shrink-then-ellipsis strategy as other value rows.
     """
     token = re.sub(r"[^0-9A-Fa-f]", "", serial).upper()
     if not token:
-        return "n/a"
+        return FittedValue("n/a", nominal_size)
+
+    floor = max(MIN_FIELD_PT, nominal_size * min_scale)
+    candidates = (_hex_grouped(token, 4), _hex_grouped(token, 2), token)
+    size = float(nominal_size)
+    while size >= floor - 1e-6:
+        for candidate in candidates:
+            if text_width(candidate, font, size) <= max_width:
+                return FittedValue(candidate, size)
+        size -= FONT_FIT_STEP_PT
+
+    size = max(floor, size)
 
     def tw(t: str) -> float:
-        return text_width(t, font, size, hex_mode=True)
+        return text_width(t, font, size)
 
-    for candidate in (_hex_grouped(token, 4), _hex_grouped(token, 2), token):
-        if tw(candidate) <= max_width:
-            return candidate
     short = token[:16] + ELLIPSIS
     if tw(short) <= max_width:
-        return short
+        return FittedValue(short, size)
     body = token[:16]
     while body and tw(body + ELLIPSIS) > max_width:
         body = body[:-2] if len(body) > 2 else body[:-1]
-    return (body + ELLIPSIS) if body else ELLIPSIS
+    text = (body + ELLIPSIS) if body else ELLIPSIS
+    return FittedValue(text, size)
 
 
 def footer_reserved_height(footer_size: float, pad: float, scale: float) -> float:
