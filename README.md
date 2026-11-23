@@ -1,6 +1,8 @@
 # Liminal Keys plugin for Claude
 
-Sign **documents and files** in Claude with **your own certificate** held in Liminal Keys. Private keys never leave Liminal Keys custody. Your workspace **policy** (and optional **phone approval** in LK Approvals) gates every signature before the key is used. At the cryptographic level signing is **format-agnostic**: the MCP server signs a SHA-256 digest; you can build **PAdES, CAdES, XAdES,** and other formats. The bundled **liminalkeys-sign** skill adds a **PDF** path with a visible Liminal Keys stamp on the page when you want one.
+**Liminal Keys** lets Claude sign documents and files with your own certificate, under your rules, with approval on your phone. PDFs come back with a visible signature; other file types can be signed too.
+
+This repository is the official Claude plugin (`LiminalKeys/claude-plugin`). Private keys stay in Key Vault and are never sent to Claude, the sandbox, or this plugin. Workspace policy (deny, require approval, or auto-sign) is the control layer: Claude never signs on its own authority.
 
 Liminal Keys also supports separate **app and code signing** (Mac, Xcode, CI) — see [app & code signing docs](https://www.liminalkeys.com/docs/app-signing/). Agent setup: [Sign with Claude](https://www.liminalkeys.com/docs/agents/claude/).
 
