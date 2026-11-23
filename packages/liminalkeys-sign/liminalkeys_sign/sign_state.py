@@ -8,7 +8,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
-STATE_VERSION = 3
+STATE_VERSION = 4
 
 
 @dataclass(frozen=True)
@@ -24,6 +24,7 @@ class SignState:
     package_version: str
     document_label: str | None = None
     visible_signature: bool = True
+    sign_hash_path: str | None = None
 
     def to_json(self) -> str:
         return json.dumps(asdict(self), indent=2, sort_keys=True)
@@ -33,6 +34,8 @@ class SignState:
         data = json.loads(path.read_text(encoding="utf-8"))
         if "visible_signature" not in data:
             data["visible_signature"] = True
+        if "sign_hash_path" not in data:
+            data["sign_hash_path"] = None
         return cls(**data)
 
 
@@ -58,6 +61,7 @@ def write_sign_state(
     document_label: str | None = None,
     approval_preview_path: Path | None = None,
     visible_signature: bool = True,
+    sign_hash_path: Path | None = None,
 ) -> SignState:
     paths: dict[str, str] = {
         "signed_attrs": str(signed_attrs_path.resolve()),
@@ -66,6 +70,9 @@ def write_sign_state(
     }
     if approval_preview_path is not None:
         paths["approval_preview"] = str(approval_preview_path.resolve())
+    sign_hash_resolved = str(sign_hash_path.resolve()) if sign_hash_path is not None else None
+    if sign_hash_path is not None:
+        paths["sign_hash_json"] = sign_hash_resolved
     state = SignState(
         version=STATE_VERSION,
         digest_hex=digest_hex,
@@ -78,6 +85,7 @@ def write_sign_state(
         package_version=package_version,
         document_label=document_label,
         visible_signature=visible_signature,
+        sign_hash_path=sign_hash_resolved,
     )
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(state.to_json(), encoding="utf-8")

@@ -6,7 +6,7 @@ This repository is the official Claude plugin (`LiminalKeys/claude-plugin`). Pri
 
 Liminal Keys also supports separate **app and code signing** (Mac, Xcode, CI) — see [app & code signing docs](https://www.liminalkeys.com/docs/app-signing/). Agent setup: [Sign with Claude](https://www.liminalkeys.com/docs/agents/claude/).
 
-**Version:** 0.1.13 (bundles the `liminalkeys-sign` skill with offline CPython 3.12/3.13 wheels on Linux x86_64)  
+**Version:** 0.1.14 (bundles the `liminalkeys-sign` skill with offline CPython 3.12/3.13 wheels on Linux x86_64)  
 **License:** Apache-2.0  
 **Publisher:** Liminal Keys · https://www.liminalkeys.com · Operated by Liminal Keys, SL ([Legal notice](https://www.liminalkeys.com/legal-notice))
 
@@ -59,7 +59,7 @@ After upgrading the plugin, clear a stale CLI cache if needed:
 
 ```bash
 rm -rf "${LIMINALKEYS_SIGN_CACHE:-$HOME/.cache/liminalkeys-sign}"
-liminal-sign --version   # expect 0.1.13
+liminal-sign --version   # expect 0.1.14
 ```
 
 ## Connect

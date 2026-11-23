@@ -10,7 +10,7 @@
       "name": "liminal-keys",
       "source": "./",
       "description": "Sign documents and files in Claude with certificates held in Liminal Keys. Cryptographic signing over MCP with optional PDF/PAdES helper and visible stamp. Legal effect depends on your certificate, setup, and applicable law.",
-      "version": "0.1.13"
+      "version": "0.1.14"
     }
   ]
 }

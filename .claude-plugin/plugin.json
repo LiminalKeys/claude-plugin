@@ -1,7 +1,7 @@
 {
   "name": "liminal-keys",
   "displayName": "Liminal Keys",
-  "version": "0.1.13",
+  "version": "0.1.14",
   "description": "Sign documents and files in Claude with your own certificate. Private keys stay in Liminal Keys, and your rules and phone approval can gate every signature. PDFs can come back with a visible stamp; other file types can be signed too.",
   "author": {
     "name": "Liminal Keys",

@@ -17,9 +17,17 @@ from liminalkeys_sign.mcp_embed import (
 from liminalkeys_sign.mcp_trust import McpTrustError, load_envelope_json, verify_signed_mcp_envelope
 from liminalkeys_sign.mcp_trust import McpTrustConfig
 from liminalkeys_sign.approval_preview import approval_preview_base64, write_approval_preview_png
+from liminalkeys_sign.path_resolve import (
+    ensure_dir,
+    resolve_existing_file,
+    resolve_input_file,
+    resolve_output_path,
+    resolve_session_dir,
+)
 from liminalkeys_sign.pem_chain import split_pem_chain_file
 from liminalkeys_sign.pdf_preview import build_sign_hash_previews
 from liminalkeys_sign.prepare import DEFAULT_BYTES_RESERVED, run_prepare
+from liminalkeys_sign.sign_hash_request import default_sign_hash_path, write_sign_hash_request
 from liminalkeys_sign.sign_state import write_sign_state
 from liminalkeys_sign.visible_stamp import VisibleStampOptions, normalize_anchor
 from liminalkeys_sign.stamp_branding_guard import (
@@ -65,23 +73,45 @@ def _stamp_options_from_args(args: argparse.Namespace) -> VisibleStampOptions:
     )
 
 
-def _resolve_prepare_paths(args: argparse.Namespace) -> tuple[Path, Path, Path, list[Path]]:
-    input_pdf = args.pdf or args.input_pdf
-    if input_pdf is None:
+def _resolve_prepare_paths(
+    args: argparse.Namespace,
+) -> tuple[Path, Path, Path, list[Path], Path | None]:
+    raw_pdf = args.pdf or args.input_pdf
+    if raw_pdf is None:
         raise ValueError("prepare requires the PDF path (positional or --pdf)")
+    session_dir = resolve_session_dir(
+        work_dir=args.work_dir,
+        state_out=Path(args.out).expanduser() if args.out else None,
+    )
+    if session_dir is not None:
+        ensure_dir(session_dir)
+    state_out = (
+        resolve_output_path(args.out, session_dir=session_dir) if args.out else None
+    )
+    if state_out is not None:
+        ensure_dir(state_out.parent)
+
+    input_pdf = resolve_input_file(raw_pdf, session_dir=session_dir)
+
+    artifact_parent = session_dir if session_dir is not None else input_pdf.parent
+    internal_work = (
+        args.work_dir.expanduser().resolve()
+        if args.work_dir is not None
+        else (artifact_parent / ".lk-artifacts").resolve()
+    )
+    ensure_dir(internal_work)
+
     if args.cert_chain:
         if args.cert is not None:
             raise ValueError("prepare: use --cert-chain or --cert, not both")
-        base_work = args.work_dir or (args.out.parent / ".lk-work" if args.out else None)
-        if base_work is None:
-            raise ValueError("prepare with --cert-chain requires --work-dir or --out state.json")
-        chain_files = split_pem_chain_file(args.cert_chain, base_work)
-        work_dir = args.work_dir or chain_files.work_dir
+        chain_path = resolve_existing_file(args.cert_chain, session_dir=session_dir)
+        chain_files = split_pem_chain_file(chain_path, internal_work)
         chain_paths = list(chain_files.intermediates) + list(args.chain or [])
-        return input_pdf, chain_files.leaf, work_dir, chain_paths
-    if args.cert is None or args.work_dir is None:
-        raise ValueError("prepare requires --cert and --work-dir (or --cert-chain with --out)")
-    return input_pdf, args.cert, args.work_dir, list(args.chain or [])
+        return input_pdf, chain_files.leaf, internal_work, chain_paths, state_out
+    if args.cert is None:
+        raise ValueError("prepare requires --cert-chain or --cert with --work-dir")
+    leaf = resolve_existing_file(args.cert, session_dir=session_dir)
+    return input_pdf, leaf, internal_work, list(args.chain or []), state_out
 
 
 def _cmd_prepare(args: argparse.Namespace) -> int:
@@ -94,7 +124,7 @@ def _cmd_prepare(args: argparse.Namespace) -> int:
         print("prepare: --stamp-logo requires a visible stamp (omit --invisible-signature)", file=sys.stderr)
         return 2
     try:
-        input_pdf, leaf_cert, work_dir, chain_paths = _resolve_prepare_paths(args)
+        input_pdf, leaf_cert, work_dir, chain_paths, state_out = _resolve_prepare_paths(args)
         result = run_prepare(
             input_pdf,
             leaf_cert,
@@ -105,7 +135,7 @@ def _cmd_prepare(args: argparse.Namespace) -> int:
             visible_signature=visible,
             stamp_options=stamp_opts,
         )
-    except ValueError as exc:
+    except (ValueError, FileNotFoundError) as exc:
         print(f"prepare failed: {exc}", file=sys.stderr)
         return 2
     if visible:
@@ -120,8 +150,9 @@ def _cmd_prepare(args: argparse.Namespace) -> int:
         except BrandedStampError as exc:
             print(f"prepare failed: {exc}", file=sys.stderr)
             return 2
+    # Stdout: hex digest only (small). Never print previews or base64 here.
     print(result.digest_hex)
-    if args.out:
+    if state_out is not None:
         previews = build_sign_hash_previews(
             pdf=input_pdf,
             digest_hex=result.digest_hex,
@@ -129,8 +160,13 @@ def _cmd_prepare(args: argparse.Namespace) -> int:
         )
         preview_path = work_dir / "approval_preview.bin"
         preview_path.write_bytes(base64.standard_b64decode(previews[0]["content_base64"]))
-        write_sign_state(
-            args.out,
+        sign_hash_out = (
+            resolve_output_path(args.sign_hash_out, session_dir=state_out.parent)
+            if getattr(args, "sign_hash_out", None)
+            else default_sign_hash_path(state_out)
+        )
+        state = write_sign_state(
+            state_out,
             digest_hex=result.digest_hex,
             digest_path=result.digest_path,
             work_dir=work_dir,
@@ -143,12 +179,28 @@ def _cmd_prepare(args: argparse.Namespace) -> int:
             document_label=args.document_label,
             approval_preview_path=preview_path,
             visible_signature=visible,
+            sign_hash_path=sign_hash_out,
         )
-        print(str(args.out), file=sys.stderr)
+        write_sign_hash_request(
+            sign_hash_out,
+            digest_base64=state.digest_base64,
+            document_label=args.document_label,
+            previews=previews,
+            state_path=state_out,
+        )
+        import json
+
+        summary = {
+            "state_json": str(state_out.resolve()),
+            "sign_hash_json": str(sign_hash_out.resolve()),
+            "work_dir": str(work_dir.resolve()),
+            "preview_decoded_bytes": len(preview_path.read_bytes()),
+        }
+        print(json.dumps(summary), file=sys.stderr)
     print(
-        f"signed_attrs: {result.signed_attrs_path}",
-        f"digest: {result.digest_path}",
-        f"state: {result.state_path}",
+        f"signed_attrs: {result.signed_attrs_path.resolve()}",
+        f"digest: {result.digest_path.resolve()}",
+        f"state_pkl: {result.state_path.resolve()}",
         sep="\n",
         file=sys.stderr,
     )
@@ -349,7 +401,17 @@ def build_parser() -> argparse.ArgumentParser:
         "--work-dir",
         type=_path_arg,
         default=None,
-        help="Directory for signed_attrs.der, tbs_digest.bin, state.pkl (default: parent of --out/.lk-work)",
+        help=(
+            "Session directory for chain.pem and outputs (created if missing). "
+            "Default: parent directory of --out."
+        ),
+    )
+    p_prepare.add_argument(
+        "--sign-hash-out",
+        type=_path_arg,
+        default=None,
+        metavar="sign_hash.json",
+        help="Write MCP sign_hash body JSON (default: <state-dir>/sign_hash.json)",
     )
     p_prepare.add_argument(
         "--chain",
