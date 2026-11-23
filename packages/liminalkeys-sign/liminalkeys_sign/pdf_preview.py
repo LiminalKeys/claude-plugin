@@ -10,9 +10,12 @@ from pathlib import Path
 
 from liminalkeys_sign.approval_preview import approval_preview_base64, grayscale_png_bytes
 
-# Default: one page, low DPI, compressed WebP when Pillow is available.
-DEFAULT_MAX_EDGE = 480
-DEFAULT_WEBP_QUALITY = 55
+# Agent tool payloads truncate above ~8–32 KiB; keep decoded previews ≤ 4 KiB for sign_hash.
+MAX_SIGN_HASH_PREVIEW_BYTES = 4096
+DEFAULT_MAX_EDGE = 240
+DEFAULT_WEBP_QUALITY = 45
+FALLBACK_MAX_EDGE = 120
+FALLBACK_WEBP_QUALITY = 35
 
 
 def _encode_preview_bytes(data: bytes, *, content_type: str) -> dict[str, str]:
@@ -52,19 +55,38 @@ def _pdftoppm_png(pdf: Path, *, dpi: int = 72) -> bytes | None:
         return png_path.read_bytes()
 
 
-def _shrink_image(png_bytes: bytes) -> tuple[bytes, str]:
+def _shrink_image(
+    png_bytes: bytes,
+    *,
+    max_edge: int = DEFAULT_MAX_EDGE,
+    webp_quality: int = DEFAULT_WEBP_QUALITY,
+) -> tuple[bytes, str]:
     try:
-        from PIL import Image  # optional; bundled WebP shrink when Pillow is present
+        from PIL import Image  # pillow bundled in skill wheels
     except ImportError:
         return png_bytes, "image/png"
     import io
 
     with Image.open(io.BytesIO(png_bytes)) as img:
         img = img.convert("RGB")
-        img.thumbnail((DEFAULT_MAX_EDGE, DEFAULT_MAX_EDGE), Image.Resampling.LANCZOS)
+        img.thumbnail((max_edge, max_edge), Image.Resampling.LANCZOS)
         buf = io.BytesIO()
-        img.save(buf, format="WEBP", quality=DEFAULT_WEBP_QUALITY, method=6)
+        img.save(buf, format="WEBP", quality=webp_quality, method=6)
         return buf.getvalue(), "image/webp"
+
+
+def _fit_preview_under_limit(body: bytes, content_type: str, *, raw_png: bytes | None) -> tuple[bytes, str]:
+    if len(body) <= MAX_SIGN_HASH_PREVIEW_BYTES:
+        return body, content_type
+    if raw_png is not None:
+        body, content_type = _shrink_image(
+            raw_png, max_edge=FALLBACK_MAX_EDGE, webp_quality=FALLBACK_WEBP_QUALITY
+        )
+        if len(body) <= MAX_SIGN_HASH_PREVIEW_BYTES:
+            return body, content_type
+    if raw_png is not None:
+        body, content_type = _shrink_image(raw_png, max_edge=96, webp_quality=30)
+    return body, content_type
 
 
 def build_sign_hash_previews(
@@ -73,14 +95,14 @@ def build_sign_hash_previews(
     digest_hex: str,
     document_label: str | None = None,
 ) -> list[dict[str, str]]:
-    """Return one small preview item for sign_hash `previews` (≤ ~32 KiB target)."""
+    """Return one preview item sized for MCP tool calls (decoded ≤ 4 KiB)."""
     if pdf is not None and pdf.is_file():
-        raw_png = _pdftoppm_png(pdf)
+        raw_png = _pdftoppm_png(pdf, dpi=48)
         if raw_png:
             body, content_type = _shrink_image(raw_png)
-            if len(body) <= 1_048_576:
-                return [_encode_preview_bytes(body, content_type=content_type)]
-    placeholder = grayscale_png_bytes(width=160, height=200)
+            body, content_type = _fit_preview_under_limit(body, content_type, raw_png=raw_png)
+            return [_encode_preview_bytes(body, content_type=content_type)]
+    placeholder = grayscale_png_bytes(width=120, height=150)
     return [_encode_preview_bytes(placeholder, content_type="image/png")]
 
 

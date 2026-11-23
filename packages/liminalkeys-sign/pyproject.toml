@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "liminalkeys-sign"
-version = "0.1.13"
+version = "0.1.14"
 description = "PAdES PDF signing helper for Liminal Keys AI agents (hash-only, pyHanko)."
 readme = "README.md"
 requires-python = ">=3.10"

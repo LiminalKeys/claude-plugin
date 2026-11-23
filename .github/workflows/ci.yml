@@ -46,4 +46,4 @@ jobs:
         run: |
           set -euo pipefail
           chmod +x skills/liminalkeys-sign/bin/liminal-sign
-          skills/liminalkeys-sign/bin/liminal-sign --version | grep -F '0.1.13'
+          skills/liminalkeys-sign/bin/liminal-sign --version | grep -F '0.1.14'

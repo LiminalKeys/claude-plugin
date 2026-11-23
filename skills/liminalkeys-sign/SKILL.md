@@ -1,7 +1,7 @@
 ---
 name: "liminalkeys-sign"
 description: "Sign content with a certificate identity in Liminal Keys custody via MCP (hash-only signing; includes optional PAdES PDF helper — private keys never in the sandbox)."
-version: "0.1.13"
+version: "0.1.14"
 ---
 
 # Liminal Keys hash signing (Claude skill)
@@ -14,7 +14,7 @@ Sign a **SHA-256 digest** with a **certificate in Liminal Keys custody**. Privat
 export SKILL_DIR="<folder containing this file>"
 chmod +x "$SKILL_DIR/bin/liminal-sign"
 export PATH="$SKILL_DIR/bin:$PATH"
-liminal-sign --version   # must print liminalkeys-sign 0.1.13
+liminal-sign --version   # must print liminalkeys-sign 0.1.14
 ```
 
 `liminal-sign` installs the bundled wheel into a **content-addressed cache** under `~/.cache/liminalkeys-sign` (override with `LIMINALKEYS_SIGN_CACHE`). The cache key includes the wheel SHA-256 — **do not** run `pip install liminalkeys-sign` from PyPI or hand-roll a venv unless `liminal-sign` is missing from the skill folder.
@@ -32,7 +32,24 @@ MCP: admin-configured Liminal Keys endpoint only. Trust pins ship in the skill; 
 
 When the bundled CLI runs, `prepare` and `finish` **fail closed** if the PDF would show pyHanko's default stamp instead of the Liminal Keys plate (`/LkWm0`, `Signed with Liminal Keys`).
 
+### Forbidden (payload size / paths)
+
+- **No** `cd` into the work directory — the CLI resolves `chain.pem`, `state.json`, and the PDF against **`--work-dir`**.
+- **No** printing or pasting **`sign_hash.json`**, **`state.json`**, **`previews`**, or **base64** into chat, reasoning, or manual tool arguments (truncation breaks `sign_hash`).
+- **No** `cat` / `python3 -c` that emits large JSON to stdout for copying.
+- For **`sign_hash`**: read **`$WORK/sign_hash.json`** once (Read tool or in-process load) and pass **`digest_base64`**, **`document_label`**, **`previews`**, and **`poll_timeout_seconds`** directly into the MCP call — do not show those values to the user.
+
 ## Fixed flow
+
+### 0. Work directory (once per signing attempt)
+
+```bash
+WORK="$(pwd)/lk-sign-work"
+export WORK
+mkdir -p "$WORK"
+```
+
+Keep the shell cwd where the PDF lives. **Never** `cd "$WORK"`. Relative paths like `chain.pem` and `state.json` are resolved inside **`$WORK`** by the CLI.
 
 ### 1. Certificates (MCP — exactly once each)
 
@@ -45,7 +62,7 @@ When the bundled CLI runs, `prepare` and `finish` **fail closed** if the PDF wou
 
 Ask **only** if multiple equally valid signing certs remain.
 
-**`get_certificate_chain`** — **`certificate_id`** + **new** `client_nonce`. Write the full PEM chain once to `$WORK/chain.pem`. Do **not** call `list_certificates` or `get_certificate_chain` again in this attempt.
+**`get_certificate_chain`** — **`certificate_id`** + **new** `client_nonce`. Write the full PEM chain once to **`$WORK/chain.pem`**. Do **not** call `list_certificates` or `get_certificate_chain` again in this attempt.
 
 When Console or the user exposes signer **locale** or **timezone** (e.g. `Europe/Madrid`, `de-DE`), pass them on `prepare` (below). Do not guess timezone.
 
@@ -54,43 +71,43 @@ When Console or the user exposes signer **locale** or **timezone** (e.g. `Europe
 **Default:** branded **visible** Liminal Keys stamp (248×96 pt), **last page**, **bottom-right**, LK logo watermark (`/LkWm0`), structured fields (signer, date, issuer, serial when tall enough), footer **Signed with Liminal Keys**, dates like **`CET (UTC+1)`** when timezone is set. Appearance is hashed in CMS signed attributes — set placement/locale **here**, not after `sign_hash`.
 
 ```bash
-WORK=./lk-sign-work
-mkdir -p "$WORK"
-liminal-sign prepare --pdf "$PDF" --cert-chain "$WORK/chain.pem" \
-  --out "$WORK/state.json" --document-label "$DOCUMENT_LABEL"
+liminal-sign prepare --pdf "$PDF" --work-dir "$WORK" --cert-chain chain.pem \
+  --out state.json --document-label "$DOCUMENT_LABEL"
 ```
+
+`prepare` creates **`$WORK/state.json`** and **`$WORK/sign_hash.json`** (MCP-ready fields; preview ≤ 4 KiB decoded). Stdout is **digest hex only**. Check stderr JSON for absolute paths — do not re-print it.
 
 Add stamp overrides only when the user asks (or locale/timezone from cert metadata):
 
 ```bash
 # Example: Spanish dates in Madrid time
-liminal-sign prepare --pdf "$PDF" --cert-chain "$WORK/chain.pem" \
-  --out "$WORK/state.json" --document-label "$DOCUMENT_LABEL" \
+liminal-sign prepare --pdf "$PDF" --work-dir "$WORK" --cert-chain chain.pem \
+  --out state.json --document-label "$DOCUMENT_LABEL" \
   --stamp-locale es-ES --stamp-timezone Europe/Madrid
 ```
 
 **Invisible field only** when the user explicitly wants no on-page stamp: add **`--invisible-signature`**.
 
-Read **`$WORK/state.json`**: use **`digest_base64`** and **`previews`** on `sign_hash`. Do not re-run `approval-preview` or a second `prepare` for the same PDF.
+Do not re-run `approval-preview` or a second `prepare` for the same PDF.
 
-**Approval preview disclosure:** `previews` may include a **low-resolution image of the PDF first page** (or a blank placeholder) so approvers can recognise the document. It is generated locally and is **not** cryptographically bound to the digest; approvers must rely on the document label and their own judgement.
+**Approval preview disclosure:** `previews` may include a **small thumbnail** of the PDF first page (or a blank placeholder) so approvers can recognise the document. It is generated locally and is **not** cryptographically bound to the digest.
 
 ### 3. `sign_hash` (one call; long-poll)
 
 **Before calling `sign_hash`**, tell the user in **one line** which certificate (**subject/CN** from step 1) will sign which document (`$DOCUMENT_LABEL` / file name).
 
-Call **once** with:
+Load **`$WORK/sign_hash.json`** and call **`sign_hash` once** with:
 
 | Field | Value |
 |-------|--------|
 | `certificate_id` | from step 1 |
-| `digest_base64` | from `state.json` |
-| `document_label` | short human label (required) |
+| `digest_base64` | from `sign_hash.json` |
+| `document_label` | from `sign_hash.json` |
 | `client_nonce` | `NONCE` from step 1 (first attempt for this digest) |
-| `previews` | `state.json` → `previews` (required when approval may apply) |
-| `poll_timeout_seconds` | **120** (default) unless you need immediate `pending_approval` |
+| `previews` | from `sign_hash.json` (when approval may apply) |
+| `poll_timeout_seconds` | from `sign_hash.json` (default **120**) unless you need immediate `pending_approval` |
 
-Save the full signed JSON envelope to `$WORK/sign.json` (keep `signature`, `kid`, `nonce`).
+Save the full signed JSON envelope to **`$WORK/sign.json`** (keep `signature`, `kid`, `nonce`).
 
 **After the user has approved:** on `401`, timeout, transport error, or `pending_approval` after a full poll — call **`sign_hash` again** with the **same** `digest_base64`, **`client_nonce`**, and **`approval_id`**. Never mint a new approval or change nonce after approval. **Never** retry after `decision: denied`.
 
@@ -124,7 +141,7 @@ rm -rf "${LIMINALKEYS_SIGN_CACHE:-$HOME/.cache/liminalkeys-sign}"
 liminal-sign --version
 ```
 
-Then re-run the signing flow from step 1.
+Then re-run the signing flow from step 0.
 
 ## Stamp overrides (user-requested)
 
