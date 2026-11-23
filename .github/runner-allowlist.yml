@@ -1,2 +1,6 @@
-# Jobs allowed to pin macOS/Xcode runners instead of plain `runs-on: self-hosted`.
+# Public repo exception: org self-hosted runner groups must not serve public repos
+# (fork PRs would execute untrusted code on owner machines). CI uses GitHub-hosted runners.
+allow_github_hosted: true
+
+# macOS-only jobs (none today) may use [self-hosted, macOS] if ever needed on private forks.
 jobs: []

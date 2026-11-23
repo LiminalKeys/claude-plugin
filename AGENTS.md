@@ -1,11 +1,14 @@
 # claude-plugin — agent instructions
 
-## CI runners (org policy)
+## CI runners (public repo exception)
 
-LiminalKeys uses **self-hosted runners only** — no GitHub-hosted `ubuntu-latest` / `macos-*` / `windows-*` (org Actions budget is zero).
+**This repository is public.** LiminalKeys org **self-hosted runners are not registered for public repos** (and must stay that way): otherwise fork PRs could run arbitrary workflow code on owners’ PCs.
 
-- Set `runs-on: self-hosted` for every job unless the job truly needs **macOS / Xcode**.
-- macOS-only jobs must be listed in `.github/runner-allowlist.yml` and may use `runs-on: [self-hosted, macOS]`.
-- Do not use Docker in workflow steps on runners.
-- Workflow steps should be **cross-platform** (`shell: bash`, resolve `python`/`py` via `.github/actions/liminal-self-hosted-bootstrap` — do not rely on `actions/setup-python` when it fails on Windows).
-- The `runner-policy` CI job fails if any workflow job violates the above.
+- CI jobs here use **GitHub-hosted** runners (e.g. `ubuntu-latest`). Public repos get included GitHub Actions minutes.
+- **Private** LiminalKeys repos (e.g. `outlook-attach-mcp`, `WatchTeams`) use **only** `runs-on: self-hosted` — org Actions budget is zero on GitHub-hosted.
+
+### Runner policy in this repo
+
+- `scripts/ci/check_runner_policy.py` allows GitHub-hosted `runs-on` when `.github/runner-allowlist.yml` sets `allow_github_hosted: true` (this repo only).
+- Do not switch this repo to `self-hosted` without also changing org runner group visibility (not recommended).
+- macOS/Xcode jobs in other repos use `.github/runner-allowlist.yml` job entries and `[self-hosted, macOS]`; not applicable here today.

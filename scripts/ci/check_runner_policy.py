@@ -6,12 +6,31 @@ import re
 from pathlib import Path
 
 
-def _load_allowlist(path: Path) -> set[tuple[str, str]]:
+GITHUB_HOSTED_LABELS = frozenset(
+    {
+        "ubuntu-latest",
+        "ubuntu-24.04",
+        "ubuntu-22.04",
+        "ubuntu-20.04",
+        "macos-latest",
+        "macos-14",
+        "macos-13",
+        "windows-latest",
+        "windows-2022",
+    }
+)
+
+
+def _load_policy(path: Path) -> tuple[set[tuple[str, str]], bool]:
     if not path.is_file():
-        return set()
+        return set(), False
     wf = job = None
     out: set[tuple[str, str]] = set()
+    allow_github = False
     for line in path.read_text(encoding="utf-8").splitlines():
+        if re.match(r"^allow_github_hosted:\s*true\s*$", line, re.IGNORECASE):
+            allow_github = True
+            continue
         if m := re.match(r"^\s+-\s+workflow:\s*(\S+)\s*$", line):
             wf = m.group(1)
         elif m := re.match(r"^\s+workflow:\s*(\S+)\s*$", line):
@@ -21,7 +40,11 @@ def _load_allowlist(path: Path) -> set[tuple[str, str]]:
         if wf and job:
             out.add((wf, job))
             wf = job = None
-    return out
+    return out, allow_github
+
+
+def _is_github_hosted(labels: list[str]) -> bool:
+    return len(labels) == 1 and labels[0] in GITHUB_HOSTED_LABELS
 
 
 def _parse_runs_on_block(lines: list[str], start: int) -> tuple[object, int]:
@@ -97,7 +120,7 @@ def _is_allowlisted_macos(labels: list[str]) -> bool:
 
 def main() -> int:
     root = Path(__file__).resolve().parents[2]
-    allowed = _load_allowlist(root / ".github" / "runner-allowlist.yml")
+    allowed, allow_github = _load_policy(root / ".github" / "runner-allowlist.yml")
     wf_dir = root / ".github" / "workflows"
     errors: list[str] = []
 
@@ -108,14 +131,18 @@ def main() -> int:
             if not labels:
                 continue
             key = (wf_name, job_id)
+            if allow_github and _is_github_hosted(labels):
+                continue
             if _is_plain_self_hosted(labels):
                 continue
             if key in allowed and _is_allowlisted_macos(labels):
                 continue
-            errors.append(
-                f"{wf_name} job '{job_id}': runs-on={labels!r} "
-                f"(want 'self-hosted' or allowlisted [self-hosted, macOS…])"
+            hint = (
+                "GitHub-hosted allowlist"
+                if allow_github
+                else "self-hosted or allowlisted [self-hosted, macOS…]"
             )
+            errors.append(f"{wf_name} job '{job_id}': runs-on={labels!r} (want {hint})")
 
     if errors:
         print("::error::Runner policy violations:")
