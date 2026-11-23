@@ -6,6 +6,16 @@ on:
   pull_request:
 
 jobs:
+  runner-policy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Check workflow runs-on labels
+        run: python scripts/ci/check_runner_policy.py
+
   liminalkeys-sign:
     runs-on: ubuntu-latest
     steps:
@@ -34,5 +44,6 @@ jobs:
         env:
           LIMINALKEYS_SIGN_CACHE: /tmp/lk-ci-cache
         run: |
+          set -euo pipefail
           chmod +x skills/liminalkeys-sign/bin/liminal-sign
           skills/liminalkeys-sign/bin/liminal-sign --version | grep -F '0.1.13'
