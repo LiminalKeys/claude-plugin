@@ -1,0 +1,2 @@
+# Jobs allowed to pin macOS/Xcode runners instead of plain `runs-on: self-hosted`.
+jobs: []
